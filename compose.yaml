@@ -1,0 +1,12 @@
+services:
+  postgres:
+    image: 'postgres:16-alpine'
+    ports:
+      - '5432:5432'
+    environment:
+      - 'POSTGRES_DB=talanti'
+      - 'POSTGRES_PASSWORD=dola'
+      - 'POSTGRES_USER=postgres'
+    volumes:
+      # Persist data so you don't lose users when you restart
+      - './postgres-data:/var/lib/postgresql/data'

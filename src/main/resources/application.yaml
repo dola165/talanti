@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: talanti # Updated to match your artifactId
+
+  # Docker Compose will override these automatically locally!
+  # But we keep defaults just in case you run the DB manually.
+  datasource:
+    url: jdbc:postgresql://localhost:5432/talanti
+    username: postgres
+    password: dola
+    driver-class-name: org.postgresql.Driver
+
+  # Flyway (Database Migration)
+  flyway:
+    enabled: true
+    baseline-on-migrate: true # Good for first run if DB isn't empty
+    locations: classpath:db/migration
+
+  # jOOQ Configuration
+  jooq:
+    sql-dialect: POSTGRES
+
+  # File Uploads (Standard Spring settings)
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Web Resources (Serving uploaded images)
+  web:
+    resources:
+      static-locations: classpath:/static/,file:uploads/
+
+# Logging - See your jOOQ queries clearly!
+logging:
+  level:
+    org.jooq.tools.LoggerListener: DEBUG
+    org.springframework.web.socket: INFO
+
+# Your Custom Configs (Keep these type-safe!)
+app:
+  jwt:
+    secret: ${JWT_SECRET:alySdEr1/D2ue/BBXEAp9qTA58W81aokkGjeJNEM1no=} # Read from ENV, fallback to default
+    expiration: 86400000
+  mapbox:
+    token: ${MAPBOX_TOKEN:pk.eyJ1IjoiZG9sYTE2NCIsImEiOiJjbWI4ZnR3dzIwNXhyMmpzOHJzc3p6MjZrIn0.enCosCr1bQkmuh4PhmorqQ}

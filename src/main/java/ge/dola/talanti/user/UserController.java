@@ -1,12 +1,13 @@
 package ge.dola.talanti.user;
 
 import ge.dola.talanti.security.CustomUserDetails;
+import ge.dola.talanti.user.dto.PublicUserProfileDto;
 import org.jooq.DSLContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 import static ge.dola.talanti.jooq.Tables.USERS;
 import static ge.dola.talanti.jooq.Tables.USER_PROFILES;
@@ -16,9 +17,11 @@ import static ge.dola.talanti.jooq.Tables.USER_PROFILES;
 public class UserController {
 
     private final DSLContext dsl;
+    private final UserService userService;
 
-    public UserController(DSLContext dsl) {
+    public UserController(DSLContext dsl, UserService userService) {
         this.dsl = dsl;
+        this.userService = userService;
     }
 
     /**
@@ -58,5 +61,30 @@ public class UserController {
                 record.get(USER_PROFILES.POSITION),
                 record.get(USER_PROFILES.BIO)
         ));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PublicUserProfileDto> getPublicProfile(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        if (currentUser == null) return ResponseEntity.status(401).build();
+
+        return ResponseEntity.ok(userService.getProfile(id, currentUser.getId()));
+    }
+
+    @PostMapping("/{id}/follow")
+    public ResponseEntity<?> toggleFollow(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        if (currentUser == null) return ResponseEntity.status(401).build();
+
+        try {
+            boolean isFollowed = userService.toggleFollow(id, currentUser.getId());
+            return ResponseEntity.ok(Map.of("isFollowed", isFollowed));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

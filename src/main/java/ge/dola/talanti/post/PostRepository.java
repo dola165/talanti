@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 
 import static ge.dola.talanti.jooq.Tables.POSTS;
+import static ge.dola.talanti.jooq.tables.Likes.LIKES;
 
 @Repository
 public class PostRepository {
@@ -26,5 +27,39 @@ public class PostRepository {
                 .set(POSTS.CREATED_AT, LocalDateTime.now())
                 .returning()
                 .fetchOne();
+    }
+
+    public boolean isPostLikedByUser(Long postId, Long userId) {
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(LIKES)
+                        .where(LIKES.POST_ID.eq(postId))
+                        .and(LIKES.USER_ID.eq(userId))
+        );
+    }
+
+    public void likePost(Long postId, Long userId) {
+        dsl.insertInto(LIKES)
+                .set(LIKES.POST_ID, postId)
+                .set(LIKES.USER_ID, userId)
+                .set(LIKES.CREATED_AT, LocalDateTime.now())
+                .onDuplicateKeyIgnore() // Safety net for double-clicks
+                .execute();
+    }
+
+    public void unlikePost(Long postId, Long userId) {
+        dsl.deleteFrom(LIKES)
+                .where(LIKES.POST_ID.eq(postId))
+                .and(LIKES.USER_ID.eq(userId))
+                .execute();
+    }
+
+    // Quick helper to check if a post actually exists before we try to like it
+    public boolean postExists(Long postId) {
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(POSTS)
+                        .where(POSTS.ID.eq(postId))
+        );
     }
 }

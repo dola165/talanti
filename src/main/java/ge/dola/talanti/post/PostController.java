@@ -41,4 +41,26 @@ public class PostController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+    /**
+     * React will call: POST /api/posts/{id}/like
+     */
+    @PostMapping("/{id}/like")
+    public ResponseEntity<?> toggleLike(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+
+        try {
+            boolean isNowLiked = postService.toggleLike(id, currentUser.getId());
+
+            // Returns { "isLiked": true } so the frontend can immediately turn the heart red
+            return ResponseEntity.ok(Map.of("isLiked", isNowLiked));
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

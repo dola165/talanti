@@ -26,4 +26,27 @@ public class PostService {
                 dto.isPublic()
         );
     }
+    /**
+     * Toggles the like status of a post.
+     * Returns true if the post is now liked, false if unliked.
+     */
+    @Transactional
+    public boolean toggleLike(Long postId, Long currentUserId) {
+        // 1. Verify the post exists
+        if (!postRepository.postExists(postId)) {
+            throw new RuntimeException("Post not found with id: " + postId);
+        }
+
+        // 2. Check current status
+        boolean isCurrentlyLiked = postRepository.isPostLikedByUser(postId, currentUserId);
+
+        // 3. Toggle
+        if (isCurrentlyLiked) {
+            postRepository.unlikePost(postId, currentUserId);
+            return false;
+        } else {
+            postRepository.likePost(postId, currentUserId);
+            return true;
+        }
+    }
 }

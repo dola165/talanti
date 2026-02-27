@@ -29,24 +29,28 @@ public class ClubProfileRepository {
                                 DSL.selectCount().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID))
                         ).as("followerCount"),
 
-                        // Subquery: Total Members (Players, Coaches, etc.)
+                        // Subquery: Total Members
                         DSL.field(
                                 DSL.selectCount().from(CLUB_MEMBERSHIPS).where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID))
                         ).as("memberCount"),
 
-                        // Subquery: Does the current user follow this club?
+                        // FIX: Use DSL.exists() instead of casting count()
                         DSL.field(
-                                DSL.selectCount().from(CLUB_FOLLOWS)
-                                        .where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID)
-                                                .and(CLUB_FOLLOWS.USER_ID.eq(currentUserId)))
-                        ).cast(Boolean.class).as("isFollowedByMe"),
+                                DSL.exists(
+                                        DSL.selectOne().from(CLUB_FOLLOWS)
+                                                .where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID)
+                                                        .and(CLUB_FOLLOWS.USER_ID.eq(currentUserId)))
+                                )
+                        ).as("isFollowedByMe"),
 
-                        // Subquery: Is the current user a member?
+                        // FIX: Use DSL.exists() instead of casting count()
                         DSL.field(
-                                DSL.selectCount().from(CLUB_MEMBERSHIPS)
-                                        .where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID)
-                                                .and(CLUB_MEMBERSHIPS.USER_ID.eq(currentUserId)))
-                        ).cast(Boolean.class).as("isMember")
+                                DSL.exists(
+                                        DSL.selectOne().from(CLUB_MEMBERSHIPS)
+                                                .where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID)
+                                                        .and(CLUB_MEMBERSHIPS.USER_ID.eq(currentUserId)))
+                                )
+                        ).as("isMember")
                 )
                 .from(CLUBS)
                 .where(CLUBS.ID.eq(clubId))

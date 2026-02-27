@@ -56,8 +56,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Ensure this matches your React frontend URL exactly
-        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        // UPDATE THIS LINE TO MATCH VITE's PORT:
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
 

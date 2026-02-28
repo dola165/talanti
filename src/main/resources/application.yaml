@@ -3,17 +3,14 @@ spring:
     name: talanti
 
   # --- MULTITHREADING (Requires Java 21+) ---
-  # Enables Project Loom Virtual Threads.
-  # This allows Spring to handle thousands of concurrent users instantly.
   threads:
     virtual:
       enabled: true
 
   datasource:
-    # Notice we removed the hardcoded 'dola' password and fallback secrets
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
   flyway:

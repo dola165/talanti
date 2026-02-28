@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ClubService {
@@ -51,6 +53,11 @@ public class ClubService {
             clubRepository.followClub(userId, clubId);
             return true;  // They are now following
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClubProfileDto> getAllClubs(Long currentUserId) {
+        return clubProfileRepository.getAllClubs(currentUserId);
     }
 
 }

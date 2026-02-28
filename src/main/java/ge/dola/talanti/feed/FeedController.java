@@ -1,14 +1,16 @@
 package ge.dola.talanti.feed;
 
+import ge.dola.talanti.feed.dto.CommentDto;
+import ge.dola.talanti.feed.dto.CommentRequest;
 import ge.dola.talanti.feed.dto.FeedResponseDto;
 import ge.dola.talanti.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/feed")
@@ -36,5 +38,38 @@ public class FeedController {
         FeedResponseDto response = feedService.getFeed(currentUser.getId(), cursor, limit);
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/club/{clubId}")
+    public ResponseEntity<FeedResponseDto> getClubFeed(
+            @PathVariable Long clubId,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        if (currentUser == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(feedService.getClubFeed(clubId, currentUser.getId(), cursor, limit));
+    }
+
+    @PostMapping("/posts/{postId}/like")
+    public ResponseEntity<?> toggleLike(@PathVariable Long postId, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        Long userId = currentUser != null ? currentUser.getId() : 1L; // Fallback to 1 for MVP testing
+        boolean isLiked = feedService.toggleLike(postId, userId);
+        return ResponseEntity.ok(Map.of("isLiked", isLiked));
+    }
+
+    @GetMapping("/posts/{postId}/comments")
+    public ResponseEntity<List<CommentDto>> getComments(@PathVariable Long postId) {
+        return ResponseEntity.ok(feedService.getComments(postId));
+    }
+
+    @PostMapping("/posts/{postId}/comments")
+    public ResponseEntity<CommentDto> addComment(
+            @PathVariable Long postId,
+            @RequestBody CommentRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        Long userId = currentUser != null ? currentUser.getId() : 1L;
+        CommentDto newComment = feedService.addComment(postId, userId, request.content());
+        return ResponseEntity.ok(newComment);
     }
 }

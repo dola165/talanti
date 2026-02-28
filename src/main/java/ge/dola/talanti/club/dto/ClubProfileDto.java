@@ -13,5 +13,6 @@ public record ClubProfileDto(
 
         // Logged-in User's Context
         boolean isFollowedByMe,
-        boolean isMember
+        boolean isMember,
+        String addressText
 ) {}

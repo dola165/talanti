@@ -3,6 +3,8 @@ services:
     image: 'postgres:16-alpine'
     ports:
       - '5432:5432'
+    labels:
+      org.springframework.boot.service-connection: postgres
     environment:
       - 'POSTGRES_DB=talanti'
       - 'POSTGRES_PASSWORD=dola'

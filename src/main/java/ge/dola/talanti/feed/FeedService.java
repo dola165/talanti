@@ -32,4 +32,24 @@ public class FeedService {
         // 4. Return the wrapped response
         return new FeedResponseDto(posts, nextCursor);
     }
+
+    public FeedResponseDto getClubFeed(Long clubId, Long currentUserId, Long cursor, int limit) {
+        int actualLimit = Math.min(limit, 50);
+        List<FeedPostDto> posts = feedRepository.getClubFeed(clubId, currentUserId, cursor, actualLimit);
+
+        Long nextCursor = (posts.size() == actualLimit && !posts.isEmpty()) ? posts.get(posts.size() - 1).id() : null;
+        return new FeedResponseDto(posts, nextCursor);
+    }
+
+    public boolean toggleLike(Long postId, Long userId) {
+        return feedRepository.toggleLike(postId, userId);
+    }
+
+    public java.util.List<ge.dola.talanti.feed.dto.CommentDto> getComments(Long postId) {
+        return feedRepository.getCommentsForPost(postId);
+    }
+
+    public ge.dola.talanti.feed.dto.CommentDto addComment(Long postId, Long userId, String content) {
+        return feedRepository.addComment(postId, userId, content);
+    }
 }

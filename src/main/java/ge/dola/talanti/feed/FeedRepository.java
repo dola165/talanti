@@ -18,12 +18,6 @@ public class FeedRepository {
         this.dsl = dsl;
     }
 
-    /**
-     * Fetches the feed for a specific user using Cursor-based pagination.
-     * * @param currentUserId The user looking at the feed
-     * @param cursor The ID of the last post they saw (null for the first page)
-     * @param limit How many posts to return
-     */
     public List<FeedPostDto> getFeedForUser(Long currentUserId, Long cursor, int limit) {
 
         var query = dsl.select(
@@ -31,7 +25,8 @@ public class FeedRepository {
                         POSTS.CONTENT,
                         POSTS.CREATED_AT,
                         USERS.ID.as("authorId"),
-                        USERS.USERNAME.as("authorName"),
+                        // Fallback to username if profile name doesn't exist
+                        DSL.coalesce(USER_PROFILES.FULL_NAME, USERS.USERNAME).as("authorName"),
                         CLUBS.ID.as("clubId"),
                         CLUBS.NAME.as("clubName"),
 
@@ -45,38 +40,26 @@ public class FeedRepository {
                                 DSL.selectCount().from(COMMENTS).where(COMMENTS.POST_ID.eq(POSTS.ID))
                         ).as("commentCount"),
 
-                        // Subquery to check if current user liked it
+                        // FIX: Use DSL.exists() instead of casting count() to Boolean for PostgreSQL
                         DSL.field(
-                                DSL.selectCount().from(LIKES)
-                                        .where(LIKES.POST_ID.eq(POSTS.ID)
-                                                .and(LIKES.USER_ID.eq(currentUserId)))
-                        ).cast(Boolean.class).as("isLikedByMe")
-
-                        // Note: To keep the MVP simple and avoid complex ARRAY_AGG casting,
-                        // we will handle media fetching in a slightly different way if needed,
-                        // or you can add a simple subquery returning a string array here.
+                                DSL.exists(
+                                        DSL.selectOne().from(LIKES)
+                                                .where(LIKES.POST_ID.eq(POSTS.ID)
+                                                        .and(LIKES.USER_ID.eq(currentUserId)))
+                                )
+                        ).as("isLikedByMe")
                 )
                 .from(POSTS)
                 .leftJoin(USERS).on(POSTS.AUTHOR_ID.eq(USERS.ID))
+                .leftJoin(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
                 .leftJoin(CLUBS).on(POSTS.CLUB_ID.eq(CLUBS.ID))
-                .where(POSTS.IS_PUBLIC.eq(true))
-                .and(
-                        // The Feed Algorithm: Posts by me, OR people I follow, OR clubs I follow
-                        POSTS.AUTHOR_ID.eq(currentUserId)
-                                .or(POSTS.AUTHOR_ID.in(
-                                        DSL.select(FOLLOWS.FOLLOWING_ID).from(FOLLOWS).where(FOLLOWS.FOLLOWER_ID.eq(currentUserId))
-                                ))
-                                .or(POSTS.CLUB_ID.in(
-                                        DSL.select(CLUB_FOLLOWS.CLUB_ID).from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.USER_ID.eq(currentUserId))
-                                ))
-                );
+                // For the MVP, a Global Feed ordered by newest creates the best demo experience
+                .where(POSTS.IS_PUBLIC.eq(true));
 
-        // Apply cursor pagination
         if (cursor != null) {
             query.and(POSTS.ID.lessThan(cursor));
         }
 
-        // Order by newest first, limit the results
         return query.orderBy(POSTS.ID.desc())
                 .limit(limit)
                 .fetch(record -> new FeedPostDto(
@@ -90,7 +73,105 @@ public class FeedRepository {
                         record.get("likeCount", Integer.class),
                         record.get("commentCount", Integer.class),
                         record.get("isLikedByMe", Boolean.class),
-                        List.of() // Empty list for MVP media. We can query media separately if needed.
+                        List.of() // Empty list for media placeholder
                 ));
+    }
+
+    // NEW METHOD: Fetch posts for a specific club
+    public List<FeedPostDto> getClubFeed(Long clubId, Long currentUserId, Long cursor, int limit) {
+        var query = dsl.select(
+                        POSTS.ID,
+                        POSTS.CONTENT,
+                        POSTS.CREATED_AT,
+                        USERS.ID.as("authorId"),
+                        DSL.coalesce(USER_PROFILES.FULL_NAME, USERS.USERNAME).as("authorName"),
+                        CLUBS.ID.as("clubId"),
+                        CLUBS.NAME.as("clubName"),
+                        DSL.field(DSL.selectCount().from(LIKES).where(LIKES.POST_ID.eq(POSTS.ID))).as("likeCount"),
+                        DSL.field(DSL.selectCount().from(COMMENTS).where(COMMENTS.POST_ID.eq(POSTS.ID))).as("commentCount"),
+                        DSL.field(DSL.exists(
+                                DSL.selectOne().from(LIKES)
+                                        .where(LIKES.POST_ID.eq(POSTS.ID)
+                                                .and(LIKES.USER_ID.eq(currentUserId)))
+                        )).as("isLikedByMe")
+                )
+                .from(POSTS)
+                .leftJoin(USERS).on(POSTS.AUTHOR_ID.eq(USERS.ID))
+                .leftJoin(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
+                .leftJoin(CLUBS).on(POSTS.CLUB_ID.eq(CLUBS.ID))
+                .where(POSTS.CLUB_ID.eq(clubId)); // <-- THE MAGIC FILTER
+
+        if (cursor != null) {
+            query.and(POSTS.ID.lessThan(cursor));
+        }
+
+        return query.orderBy(POSTS.ID.desc())
+                .limit(limit)
+                .fetch(record -> new FeedPostDto(
+                        record.get(POSTS.ID), record.get(POSTS.CONTENT), record.get(POSTS.CREATED_AT),
+                        record.get("authorId", Long.class), record.get("authorName", String.class),
+                        record.get("clubId", Long.class), record.get("clubName", String.class),
+                        record.get("likeCount", Integer.class), record.get("commentCount", Integer.class),
+                        record.get("isLikedByMe", Boolean.class), List.of()
+                ));
+    }
+
+    // --- LIKES ---
+    public boolean toggleLike(Long postId, Long userId) {
+        boolean exists = dsl.fetchExists(
+                dsl.selectOne().from(LIKES)
+                        .where(LIKES.POST_ID.eq(postId).and(LIKES.USER_ID.eq(userId)))
+        );
+
+        if (exists) {
+            dsl.deleteFrom(LIKES).where(LIKES.POST_ID.eq(postId).and(LIKES.USER_ID.eq(userId))).execute();
+            return false; // No longer liked
+        } else {
+            dsl.insertInto(LIKES)
+                    .set(LIKES.POST_ID, postId)
+                    .set(LIKES.USER_ID, userId)
+                    .set(LIKES.CREATED_AT, java.time.LocalDateTime.now())
+                    .execute();
+            return true; // Now liked
+        }
+    }
+
+    // --- COMMENTS ---
+    public java.util.List<ge.dola.talanti.feed.dto.CommentDto> getCommentsForPost(Long postId) {
+        return dsl.select(
+                        COMMENTS.ID,
+                        DSL.coalesce(USER_PROFILES.FULL_NAME, USERS.USERNAME).as("authorName"),
+                        COMMENTS.CONTENT,
+                        COMMENTS.CREATED_AT
+                )
+                .from(COMMENTS)
+                .join(USERS).on(COMMENTS.USER_ID.eq(USERS.ID))
+                .leftJoin(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
+                .where(COMMENTS.POST_ID.eq(postId))
+                .orderBy(COMMENTS.CREATED_AT.asc()) // Oldest comments first
+                .fetchInto(ge.dola.talanti.feed.dto.CommentDto.class);
+    }
+
+    public ge.dola.talanti.feed.dto.CommentDto addComment(Long postId, Long userId, String content) {
+        Long commentId = dsl.insertInto(COMMENTS)
+                .set(COMMENTS.POST_ID, postId)
+                .set(COMMENTS.USER_ID, userId)
+                .set(COMMENTS.CONTENT, content)
+                .set(COMMENTS.CREATED_AT, java.time.LocalDateTime.now())
+                .returningResult(COMMENTS.ID)
+                .fetchOneInto(Long.class);
+
+        // Fetch it back immediately to return the full DTO (with the author's name) to React
+        return dsl.select(
+                        COMMENTS.ID,
+                        DSL.coalesce(USER_PROFILES.FULL_NAME, USERS.USERNAME).as("authorName"),
+                        COMMENTS.CONTENT,
+                        COMMENTS.CREATED_AT
+                )
+                .from(COMMENTS)
+                .join(USERS).on(COMMENTS.USER_ID.eq(USERS.ID))
+                .leftJoin(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
+                .where(COMMENTS.ID.eq(commentId))
+                .fetchOneInto(ge.dola.talanti.feed.dto.CommentDto.class);
     }
 }

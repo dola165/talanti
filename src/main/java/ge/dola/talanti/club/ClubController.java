@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -53,5 +54,11 @@ public class ClubController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ClubProfileDto>> getAllClubs(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        Long userId = currentUser != null ? currentUser.getId() : 1L; // Fallback to user 1 for MVP testing
+        return ResponseEntity.ok(clubService.getAllClubs(userId));
     }
 }

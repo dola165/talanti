@@ -39,10 +39,12 @@ public class UserProfileRepository {
 
                         // Subquery: Does the current logged-in user follow them?
                         DSL.field(
-                                DSL.selectCount().from(FOLLOWS)
-                                        .where(FOLLOWS.FOLLOWING_ID.eq(USERS.ID)
-                                                .and(FOLLOWS.FOLLOWER_ID.eq(currentUserId)))
-                        ).cast(Boolean.class).as("isFollowedByMe")
+                                DSL.exists(
+                                        DSL.selectOne().from(FOLLOWS)
+                                                .where(FOLLOWS.FOLLOWING_ID.eq(USERS.ID)
+                                                        .and(FOLLOWS.FOLLOWER_ID.eq(currentUserId)))
+                                )
+                        ).as("isFollowedByMe")
                 )
                 .from(USERS)
                 .leftJoin(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))

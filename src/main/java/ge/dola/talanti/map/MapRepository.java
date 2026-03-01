@@ -13,6 +13,7 @@ import java.util.List;
 
 import static ge.dola.talanti.jooq.Tables.CLUBS;
 import static ge.dola.talanti.jooq.Tables.LOCATIONS;
+import static ge.dola.talanti.jooq.tables.Tryouts.TRYOUTS;
 
 @Repository
 public class MapRepository {
@@ -64,6 +65,39 @@ public class MapRepository {
                 // Order by closest first
                 .orderBy(distanceKm.asc())
                 // Limit to 50 pins so the frontend map doesn't crash
+                .limit(50)
+                .fetchInto(MapMarkerDto.class);
+    }
+
+    /**
+     * Finds active tryouts near a specific latitude/longitude using the Haversine formula.
+     */
+    public List<MapMarkerDto> findNearbyTryouts(Double lat, Double lng, Double radiusKm) {
+        Field<Double> distanceKm = DSL.field(
+                "6371 * acos(cos(radians({0})) * cos(radians(" + LOCATIONS.LATITUDE.getName() + ")) * " +
+                        "cos(radians(" + LOCATIONS.LONGITUDE.getName() + ") - radians({1})) + " +
+                        "sin(radians({0})) * sin(radians(" + LOCATIONS.LATITUDE.getName() + ")))",
+                Double.class,
+                lat, lng
+        );
+
+        return dsl.select(
+                        TRYOUTS.ID.as("entityId"),
+                        DSL.inline("TRYOUT").as("entityType"),
+                        TRYOUTS.TITLE.as("title"),
+                        CLUBS.NAME.as("subtitle"), // This makes the club name show up under the tryout title
+                        LOCATIONS.LATITUDE,
+                        LOCATIONS.LONGITUDE,
+                        distanceKm.as("distanceKm")
+                )
+                .from(TRYOUTS)
+                .join(CLUBS).on(TRYOUTS.CLUB_ID.eq(CLUBS.ID))
+                .join(LOCATIONS).on(TRYOUTS.LOCATION_ID.eq(LOCATIONS.ID))
+                // Only show tryouts that haven't happened yet
+                .where(TRYOUTS.TRYOUT_DATE.greaterOrEqual(LocalDateTime.now()))
+                // Only show within the slider's radius
+                .and(distanceKm.le(radiusKm))
+                .orderBy(distanceKm.asc())
                 .limit(50)
                 .fetchInto(MapMarkerDto.class);
     }

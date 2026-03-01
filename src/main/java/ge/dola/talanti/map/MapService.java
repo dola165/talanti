@@ -22,9 +22,12 @@ public class MapService {
     public List<MapMarkerDto> getNearbyEntities(Double lat, Double lng, Double radiusKm, String type) {
         if ("CLUB".equalsIgnoreCase(type)) {
             return mapRepository.findNearbyClubs(lat, lng, radiusKm);
+        } else if ("TRYOUT".equalsIgnoreCase(type)) {
+            // NEW: Route TRYOUT requests to the new query!
+            return mapRepository.findNearbyTryouts(lat, lng, radiusKm);
         }
 
-        // You can add findNearbyUsers or findNearbyPickupGames here later!
         return List.of();
     }
+
 }

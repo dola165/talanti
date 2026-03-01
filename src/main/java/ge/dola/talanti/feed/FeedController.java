@@ -2,6 +2,7 @@ package ge.dola.talanti.feed;
 
 import ge.dola.talanti.feed.dto.CommentDto;
 import ge.dola.talanti.feed.dto.CommentRequest;
+import ge.dola.talanti.feed.dto.CreatePostRequest;
 import ge.dola.talanti.feed.dto.FeedResponseDto;
 import ge.dola.talanti.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,17 @@ public class FeedController {
         return ResponseEntity.ok(feedService.getClubFeed(clubId, currentUser.getId(), cursor, limit));
     }
 
+    @GetMapping("/user/{authorId}")
+    public ResponseEntity<FeedResponseDto> getUserFeed(
+            @PathVariable Long authorId,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        Long userId = currentUser != null ? currentUser.getId() : 1L; // Fallback to 1 for MVP testing
+        return ResponseEntity.ok(feedService.getUserFeed(authorId, userId, cursor, limit));
+    }
+
     @PostMapping("/posts/{postId}/like")
     public ResponseEntity<?> toggleLike(@PathVariable Long postId, @AuthenticationPrincipal CustomUserDetails currentUser) {
         Long userId = currentUser != null ? currentUser.getId() : 1L; // Fallback to 1 for MVP testing
@@ -71,5 +83,16 @@ public class FeedController {
         Long userId = currentUser != null ? currentUser.getId() : 1L;
         CommentDto newComment = feedService.addComment(postId, userId, request.content());
         return ResponseEntity.ok(newComment);
+    }
+
+
+    @PostMapping("/posts")
+    public ResponseEntity<?> createPost(
+            @RequestBody CreatePostRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        Long userId = currentUser != null ? currentUser.getId() : 1L; // Fallback for MVP
+        feedService.createPost(userId, request);
+        return ResponseEntity.ok(Map.of("message", "Post created successfully"));
     }
 }

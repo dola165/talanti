@@ -1,5 +1,6 @@
 package ge.dola.talanti.feed;
 
+import ge.dola.talanti.feed.dto.CreatePostRequest;
 import ge.dola.talanti.feed.dto.FeedPostDto;
 import ge.dola.talanti.feed.dto.FeedResponseDto;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,18 @@ public class FeedService {
         return new FeedResponseDto(posts, nextCursor);
     }
 
+    public FeedResponseDto getUserFeed(Long authorId, Long currentUserId, Long cursor, int limit) {
+        int actualLimit = Math.min(limit, 50);
+        List<FeedPostDto> posts = feedRepository.getUserFeed(authorId, currentUserId, cursor, actualLimit);
+
+        Long nextCursor = null;
+        if (posts.size() == actualLimit && !posts.isEmpty()) {
+            nextCursor = posts.get(posts.size() - 1).id();
+        }
+
+        return new FeedResponseDto(posts, nextCursor);
+    }
+
     public boolean toggleLike(Long postId, Long userId) {
         return feedRepository.toggleLike(postId, userId);
     }
@@ -52,4 +65,9 @@ public class FeedService {
     public ge.dola.talanti.feed.dto.CommentDto addComment(Long postId, Long userId, String content) {
         return feedRepository.addComment(postId, userId, content);
     }
+
+    public void createPost(Long authorId, CreatePostRequest request) {
+        feedRepository.createPost(authorId, request);
+    }
+
 }

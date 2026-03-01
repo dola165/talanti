@@ -2,6 +2,7 @@ package ge.dola.talanti.websocket;
 
 import ge.dola.talanti.dto.ChatDTOs;
 import ge.dola.talanti.jooq.tables.records.UsersRecord;
+import ge.dola.talanti.security.CustomUserDetails;
 import org.jooq.DSLContext;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -32,41 +33,45 @@ public class ChatController {
 
     @MessageMapping("/message")
     @Transactional
-    public void handleMessage(ChatDTOs.MessageInput input) {
-        // Log it to verify it works
-        System.out.println("📩 Received: " + input.message() + " from " + input.user());
+    public void handleMessage(ChatDTOs.MessageInput input, org.springframework.security.core.Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Long userId = userDetails.getId();
+        String username = userDetails.getUser().getUsername();
 
-        // 1. Find or Create User (to get ID)
-        Long userId = getOrCreateUserId(input.user());
+        // Log it to verify it works
+        System.out.println("📩 Received: " + input.message() + " from " + username + " (ID: " + userId + ")");
 
         // 2. Save Message to DB
         var record = dsl.newRecord(MESSAGES);
         record.setSenderId(userId);
         record.setContent(input.message()); // Mapping 'message' from DTO to 'content' in DB
-        record.setConversationId(1L); // Hardcoded to General Chat
+        record.setConversationId(input.conversationId() != null ? input.conversationId() : 1L);
         record.store();
 
         // 3. Update 'last_message_at' for the conversation
         dsl.update(CONVERSATIONS)
                 .set(CONVERSATIONS.CREATED_AT, LocalDateTime.now())
-                .where(CONVERSATIONS.ID.eq(1L))
+                .where(CONVERSATIONS.ID.eq(input.conversationId() != null ? input.conversationId() : 1L))
                 .execute();
 
         // 4. Send back to Clients
-        // We send the input back because it matches exactly what the Swing Client expects:
-        // { "user": "...", "message": "..." }
-        messagingTemplate.convertAndSend("/topic/messages", input);
+        // We broadcast a more complete response or just the message
+        ChatDTOs.MessageInput broadcast = new ChatDTOs.MessageInput(username, input.message(), input.conversationId());
+        messagingTemplate.convertAndSend("/topic/messages", broadcast);
     }
 
     @MessageMapping("/connect")
-    public void connectUser(String username) {
+    public void connectUser(org.springframework.security.core.Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        String username = userDetails.getUser().getUsername();
         sessionManager.addUsername(username);
-        getOrCreateUserId(username); // Ensure they exist in DB
         System.out.println("✅ Connected: " + username);
     }
 
     @MessageMapping("/disconnect")
-    public void disconnectUser(String username) {
+    public void disconnectUser(org.springframework.security.core.Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        String username = userDetails.getUser().getUsername();
         sessionManager.removeUsername(username);
         System.out.println("❌ Disconnected: " + username);
     }
@@ -74,22 +79,5 @@ public class ChatController {
     @MessageMapping("/request-users")
     public void requestUsers(){
         sessionManager.broadcastActiveUsernames();
-    }
-
-    // Helper: Finds user ID by name, or creates them if missing
-    private Long getOrCreateUserId(String username) {
-        var existingUser = dsl.selectFrom(USERS)
-                .where(USERS.USERNAME.eq(username))
-                .fetchOne();
-
-        if (existingUser != null) {
-            return existingUser.getId();
-        } else {
-            var newUser = dsl.newRecord(USERS);
-            newUser.setUsername(username);
-            newUser.setPasswordHash("placeholder_hash");
-            newUser.store();
-            return newUser.getId();
-        }
     }
 }

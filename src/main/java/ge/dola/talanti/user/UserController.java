@@ -2,11 +2,14 @@ package ge.dola.talanti.user;
 
 import ge.dola.talanti.security.CustomUserDetails;
 import ge.dola.talanti.user.dto.PublicUserProfileDto;
+import ge.dola.talanti.user.dto.UserSearchDto;
+import ge.dola.talanti.user.repository.UserRepository;
 import org.jooq.DSLContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 import static ge.dola.talanti.jooq.Tables.USERS;
@@ -18,10 +21,12 @@ public class UserController {
 
     private final DSLContext dsl;
     private final UserService userService;
+    private final UserRepository userRepository;
 
-    public UserController(DSLContext dsl, UserService userService) {
+    public UserController(DSLContext dsl, UserService userService, UserRepository userRepository) {
         this.dsl = dsl;
         this.userService = userService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -86,5 +91,13 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<UserSearchDto>> searchUsers(@RequestParam("q") String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(userRepository.searchUsers(query.trim()));
     }
 }

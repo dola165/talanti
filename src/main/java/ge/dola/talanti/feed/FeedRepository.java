@@ -1,8 +1,11 @@
 package ge.dola.talanti.feed;
 
 import ge.dola.talanti.feed.dto.FeedPostDto;
+import ge.dola.talanti.notification.event.NotificationEvent;
+import lombok.RequiredArgsConstructor;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -10,13 +13,12 @@ import java.util.List;
 import static ge.dola.talanti.jooq.Tables.*;
 
 @Repository
+@RequiredArgsConstructor
 public class FeedRepository {
 
     private final DSLContext dsl;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
-    public FeedRepository(DSLContext dsl) {
-        this.dsl = dsl;
-    }
 
     public List<FeedPostDto> getFeedForUser(Long currentUserId, Long cursor, int limit) {
 
@@ -256,13 +258,27 @@ public class FeedRepository {
             mediaInsert.execute();
         }
 
-        // 3. Link the Tagged Players (For their Match Feed)
+// Inside FeedRepository.java's createPost method:
+
+// 3. Link the Tagged Players (For their Match Feed)
         if (request.taggedUserIds() != null && !request.taggedUserIds().isEmpty()) {
             var tagsInsert = dsl.insertInto(POST_TAGS, POST_TAGS.POST_ID, POST_TAGS.USER_ID);
             for (Long taggedUserId : request.taggedUserIds()) {
                 tagsInsert = tagsInsert.values(postId, taggedUserId);
+
+                // NEW: Fire the tag notification event!
+                applicationEventPublisher.publishEvent(new NotificationEvent(
+                        taggedUserId, "POST_TAG", "post", postId, "You were tagged", "Someone tagged you in a post", null
+                ));
             }
             tagsInsert.execute();
+        }
+
+// 4. NEW: Fan-out Club Announcement
+        if (request.clubId() != null) {
+            applicationEventPublisher.publishEvent(new NotificationEvent(
+                    null, "CLUB_ANNOUNCEMENT", "post", postId, "New Club Post", "A club you follow posted an update", request.clubId()
+            ));
         }
     }
 }

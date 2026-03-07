@@ -26,11 +26,12 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        int userCount = dsl.fetchCount(dsl.selectFrom(USERS));
-        if (userCount > 5) {
-            System.out.println("🌱 Database already populated. Skipping massive seeder.");
-            return;
-        }
+        // Temporarily commented out to force regeneration if needed
+        // int userCount = dsl.fetchCount(dsl.selectFrom(USERS));
+        // if (userCount > 5) {
+        //     System.out.println("🌱 Database already populated. Skipping massive seeder.");
+        //     return;
+        // }
 
         System.out.println("🌱 Starting Massive Data Seeder with Datafaker...");
         Faker faker = new Faker();
@@ -41,65 +42,75 @@ public class DataSeeder implements CommandLineRunner {
         List<Long> postIds = new ArrayList<>();
 
         // --- 1. GENERATE 100 USERS ---
-        String[] positions = {"Forward", "Midfielder", "Defender", "Goalkeeper", "Striker", "Winger", "Center Back", "Full Back"};
-        String[] feet = {"Right", "Left", "Both"};
-
         for (int i = 0; i < 100; i++) {
             Long userId = dsl.insertInto(USERS)
                     .set(USERS.EMAIL, faker.internet().emailAddress())
                     .set(USERS.USERNAME, faker.internet().username())
-                    .set(USERS.PASSWORD_HASH, "none")
-                    .set(USERS.CREATED_AT, LocalDateTime.now().minusDays(random.nextInt(30)))
+                    .set(USERS.PASSWORD_HASH, "hashed_password")
+                    .set(USERS.SYSTEM_ROLE, (short) 0) // ADDED SYSTEM_ROLE
+                    .set(USERS.CREATED_AT, LocalDateTime.now().minusDays(random.nextInt(365)))
                     .returningResult(USERS.ID)
                     .fetchOneInto(Long.class);
+
             userIds.add(userId);
 
             dsl.insertInto(USER_PROFILES)
                     .set(USER_PROFILES.USER_ID, userId)
                     .set(USER_PROFILES.FULL_NAME, faker.name().fullName())
-                    .set(USER_PROFILES.POSITION, positions[random.nextInt(positions.length)])
-                    .set(USER_PROFILES.PREFERRED_FOOT, feet[random.nextInt(feet.length)])
-                    .set(USER_PROFILES.BIO, faker.lorem().paragraph(2))
+                    .set(USER_PROFILES.BIO, faker.lorem().sentence(5)) // Kept short to prevent DB truncation
+                    .set(USER_PROFILES.POSITION, faker.options().option("Striker", "Midfielder", "Defender", "Goalkeeper"))
+                    .set(USER_PROFILES.PREFERRED_FOOT, random.nextBoolean() ? "Right" : "Left")
                     .execute();
         }
 
-        // --- 2. GENERATE 30 CLUBS & TRYOUTS ---
-        String[] clubTypes = {"Amateur", "Semi-Pro", "Academy", "Professional"};
-        double baseLat = 41.7151; // Tbilisi Center
-        double baseLng = 44.8271;
+        // --- 2. GENERATE 30 CLUBS & LOCATIONS ---
+        String[] clubTypes = {"Professional", "Amateur", "Academy", "University"};
 
         for (int i = 0; i < 30; i++) {
-            Long clubId = dsl.insertInto(CLUBS)
-                    .set(CLUBS.NAME, faker.address().city() + " " + faker.team().creature())
-                    .set(CLUBS.DESCRIPTION, faker.company().catchPhrase() + ". " + faker.lorem().paragraph())
-                    .set(CLUBS.TYPE, clubTypes[random.nextInt(clubTypes.length)])
-                    .set(CLUBS.IS_OFFICIAL, random.nextBoolean())
-                    .set(CLUBS.CREATED_BY, userIds.get(random.nextInt(userIds.size())))
-                    .returningResult(CLUBS.ID)
-                    .fetchOneInto(Long.class);
-            clubIds.add(clubId);
-
-            // Tighter radius! ~10km bounding box around Tbilisi so they show up easily on the map
-            double randomLat = baseLat + (random.nextDouble() * 0.15 - 0.075);
-            double randomLng = baseLng + (random.nextDouble() * 0.15 - 0.075);
+            // Drop them near Tbilisi (Lat: 41.7151, Lng: 44.8271)
+            double lat = 41.7151 + (random.nextDouble() * 0.2 - 0.1);
+            double lng = 44.8271 + (random.nextDouble() * 0.2 - 0.1);
 
             Long locationId = dsl.insertInto(LOCATIONS)
+                    .set(LOCATIONS.LATITUDE, BigDecimal.valueOf(lat))
+                    .set(LOCATIONS.LONGITUDE, BigDecimal.valueOf(lng))
+                    .set(LOCATIONS.ADDRESS_TEXT, faker.address().streetAddress() + ", Tbilisi")
                     .set(LOCATIONS.ENTITY_TYPE, "CLUB")
-                    .set(LOCATIONS.ENTITY_ID, clubId)
-                    .set(LOCATIONS.LATITUDE, BigDecimal.valueOf(randomLat))
-                    .set(LOCATIONS.LONGITUDE, BigDecimal.valueOf(randomLng))
-                    .set(LOCATIONS.ADDRESS_TEXT, faker.address().streetAddress())
-                    .set(LOCATIONS.CREATED_AT, LocalDateTime.now())
+                    .set(LOCATIONS.ENTITY_ID, 0L) // temporary
                     .returningResult(LOCATIONS.ID)
                     .fetchOneInto(Long.class);
 
-            // Create a Tryout for 80% of the clubs
-            if (random.nextInt(100) < 80) {
+            Long clubId = dsl.insertInto(CLUBS)
+                    .set(CLUBS.NAME, faker.team().name() + " FC")
+                    .set(CLUBS.DESCRIPTION, faker.lorem().paragraph(2))
+                    .set(CLUBS.TYPE, clubTypes[random.nextInt(clubTypes.length)])
+                    .set(CLUBS.IS_OFFICIAL, random.nextBoolean())
+                    .set(CLUBS.LOCATION_ID, locationId)
+                    .set(CLUBS.CREATED_AT, LocalDateTime.now().minusDays(random.nextInt(365)))
+                    .set(CLUBS.CREATED_BY, userIds.get(random.nextInt(userIds.size())))
+                    // --- NEW CONTACT AND EXTERNAL LINK FIELDS ---
+                    .set(CLUBS.STORE_URL, "https://www.facebook.com/marketplace/category/sporting-goods/")
+                    .set(CLUBS.GOFUNDME_URL, "https://www.gofundme.com/f/help-youth-football")
+                    .set(CLUBS.PHONE_NUMBER, faker.phoneNumber().cellPhone())
+                    .set(CLUBS.EMAIL, faker.internet().safeEmailAddress())
+                    .returningResult(CLUBS.ID)
+                    .fetchOneInto(Long.class);
+
+            clubIds.add(clubId);
+
+            // Update location with actual club ID
+            dsl.update(LOCATIONS)
+                    .set(LOCATIONS.ENTITY_ID, clubId)
+                    .where(LOCATIONS.ID.eq(locationId))
+                    .execute();
+
+            // Create some fake tryouts for half of the clubs
+            if (random.nextBoolean()) {
                 dsl.insertInto(TRYOUTS)
                         .set(TRYOUTS.CLUB_ID, clubId)
-                        .set(TRYOUTS.TITLE, "Open Trials - " + positions[random.nextInt(positions.length)])
-                        .set(TRYOUTS.DESCRIPTION, faker.lorem().paragraph())
-                        .set(TRYOUTS.POSITION, positions[random.nextInt(positions.length)])
+                        .set(TRYOUTS.TITLE, "Open Trial: " + faker.options().option("Spring", "Summer", "Winter"))
+                        .set(TRYOUTS.DESCRIPTION, faker.lorem().sentence(5))
+                        .set(TRYOUTS.POSITION, faker.options().option("Any", "Goalkeeper", "Striker"))
                         .set(TRYOUTS.AGE_GROUP, "U-21")
                         .set(TRYOUTS.LOCATION_ID, locationId)
                         .set(TRYOUTS.TRYOUT_DATE, LocalDateTime.now().plusDays(random.nextInt(21) + 1)) // Future dates!
@@ -122,14 +133,26 @@ public class DataSeeder implements CommandLineRunner {
                     .execute();
         }
 
+        // --- 4. GENERATE DEV USER ---
         dsl.insertInto(USERS)
                 .set(USERS.EMAIL, "react_dev@demo.com")
                 .set(USERS.USERNAME, "react_dev")
                 .set(USERS.PASSWORD_HASH, "dev_bypass")
+                .set(USERS.SYSTEM_ROLE, (short) 0) // ADDED SYSTEM_ROLE
                 .set(USERS.CREATED_AT, LocalDateTime.now())
                 .onDuplicateKeyIgnore()
                 .execute();
 
-        System.out.println("✅ Massive Data Seeding Complete!");
+        Long devId = dsl.select(USERS.ID).from(USERS).where(USERS.USERNAME.eq("react_dev")).fetchOneInto(Long.class);
+
+        dsl.insertInto(USER_PROFILES)
+                .set(USER_PROFILES.USER_ID, devId)
+                .set(USER_PROFILES.FULL_NAME, "React Developer")
+                .set(USER_PROFILES.BIO, "I am the developer of this application.")
+                .set(USER_PROFILES.POSITION, "Midfielder")
+                .onDuplicateKeyIgnore()
+                .execute();
+
+        System.out.println("✅ Seeding Complete! " + userIds.size() + " Users, " + clubIds.size() + " Clubs, and 100 Posts created.");
     }
 }

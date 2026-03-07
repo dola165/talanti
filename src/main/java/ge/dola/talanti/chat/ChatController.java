@@ -1,7 +1,6 @@
 package ge.dola.talanti.chat;
 
-import ge.dola.talanti.chat.dto.ChatMessageRequest;
-import ge.dola.talanti.chat.dto.ChatMessageResponse;
+import ge.dola.talanti.dto.ChatDTOs;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -21,7 +20,7 @@ public class ChatController {
 
     @MessageMapping("/chat.send")
     @Transactional
-    public void sendMessage(@Payload ChatMessageRequest request, SimpMessageHeaderAccessor headerAccessor) {
+    public void sendMessage(@Payload ChatDTOs.ChatMessageRequest request, SimpMessageHeaderAccessor headerAccessor) {
 
         // 1. In a real secure app, you'd get the user ID from the JWT principal in the headerAccessor.
         // For your ngrok MVP bypass, we'll hardcode the react_dev ID (assuming ID 1 or whatever it is in your DB).
@@ -29,7 +28,7 @@ public class ChatController {
         Long senderId = 1L;
 
         // 2. Save the message to the database
-        ChatMessageResponse savedMessage = chatRepository.saveMessage(
+        ChatDTOs.ChatMessageResponse savedMessage = chatRepository.saveMessage(
                 request.conversationId(),
                 senderId,
                 request.content()

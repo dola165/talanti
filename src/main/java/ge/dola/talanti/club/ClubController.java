@@ -1,6 +1,8 @@
 package ge.dola.talanti.club;
 
 import ge.dola.talanti.club.dto.ClubProfileDto;
+import ge.dola.talanti.feed.FeedService;
+import ge.dola.talanti.feed.dto.FeedResponseDto;
 import ge.dola.talanti.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import java.util.Map;
 public class ClubController {
 
     private final ClubService clubService;
+    private final FeedService feedService;
 
     /**
      * React will call: GET /api/clubs/1
@@ -60,5 +63,27 @@ public class ClubController {
     public ResponseEntity<List<ClubProfileDto>> getAllClubs(@AuthenticationPrincipal CustomUserDetails currentUser) {
         Long userId = currentUser != null ? currentUser.getId() : 1L; // Fallback to user 1 for MVP testing
         return ResponseEntity.ok(clubService.getAllClubs(userId));
+    }
+
+    @GetMapping("/club/{clubId}")
+    public ResponseEntity<FeedResponseDto> getClubFeed(
+            @PathVariable Long clubId,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        Long userId = currentUser != null ? currentUser.getId() : 1L;
+        return ResponseEntity.ok(feedService.getClubFeed(clubId, userId, cursor, limit));
+    }
+
+    @GetMapping("/user/{authorId}")
+    public ResponseEntity<FeedResponseDto> getUserFeed(
+            @PathVariable Long authorId,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        Long userId = currentUser != null ? currentUser.getId() : 1L;
+        return ResponseEntity.ok(feedService.getUserFeed(authorId, userId, cursor, limit));
     }
 }

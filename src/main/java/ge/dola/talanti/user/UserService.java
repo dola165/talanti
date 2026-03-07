@@ -1,6 +1,7 @@
 package ge.dola.talanti.user;
 
 import ge.dola.talanti.user.dto.PublicUserProfileDto;
+import ge.dola.talanti.user.repository.UserProfileRepository;
 import ge.dola.talanti.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

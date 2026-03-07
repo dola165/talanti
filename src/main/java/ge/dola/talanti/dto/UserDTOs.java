@@ -10,8 +10,7 @@ public class UserDTOs {
     public record UserSummary(
             Long id,
             String username,
-            String fullName, // From user_profiles
-            String avatarUrl // Optional
+            String fullName// From user_profiles
     ) {}
 
     /**

@@ -14,5 +14,11 @@ public record ClubProfileDto(
         // Logged-in User's Context
         boolean isFollowedByMe,
         boolean isMember,
-        String addressText
+        String addressText,
+
+        String storeUrl,
+        String gofundmeUrl,
+
+        String phoneNumber,
+        String email
 ) {}

@@ -11,5 +11,4 @@ public class TalantiApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(TalantiApplication.class, args);
 	}
-
 }

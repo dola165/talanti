@@ -25,7 +25,10 @@ public class ClubProfileRepository {
                         CLUBS.TYPE,
                         CLUBS.IS_OFFICIAL,
                         LOCATIONS.ADDRESS_TEXT,
-
+                        CLUBS.STORE_URL,
+                        CLUBS.GOFUNDME_URL,
+                        CLUBS.PHONE_NUMBER,
+                        CLUBS.EMAIL,
                         // Subquery: Total Followers
                         DSL.field(
                                 DSL.selectCount().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID))
@@ -45,7 +48,6 @@ public class ClubProfileRepository {
                                 )
                         ).as("isFollowedByMe"),
 
-                        // Use DSL.exists() instead of casting count()
                         DSL.field(
                                 DSL.exists(
                                         DSL.selectOne().from(CLUB_MEMBERSHIPS)
@@ -55,7 +57,6 @@ public class ClubProfileRepository {
                         ).as("isMember")
                 )
                 .from(CLUBS)
-                // THE MISSING LINE THAT CAUSED THE CRASH:
                 .leftJoin(LOCATIONS).on(LOCATIONS.ENTITY_ID.eq(CLUBS.ID).and(LOCATIONS.ENTITY_TYPE.eq("CLUB")))
                 .where(CLUBS.ID.eq(clubId))
                 .fetchOptional(record -> new ClubProfileDto(
@@ -68,19 +69,23 @@ public class ClubProfileRepository {
                         record.get("memberCount", Integer.class),
                         record.get("isFollowedByMe", Boolean.class),
                         record.get("isMember", Boolean.class),
-                        record.get(LOCATIONS.ADDRESS_TEXT)
+                        record.get(LOCATIONS.ADDRESS_TEXT),
+                        record.get(CLUBS.STORE_URL),
+                        record.get(CLUBS.GOFUNDME_URL),
+                        record.get(CLUBS.PHONE_NUMBER),
+                        record.get(CLUBS.EMAIL)
                 ));
     }
 
-    // NEW METHOD: Fetch all clubs for the directory
     public List<ClubProfileDto> getAllClubs(Long currentUserId) {
         return dsl.select(
-                        CLUBS.ID,
-                        CLUBS.NAME,
-                        CLUBS.DESCRIPTION,
-                        CLUBS.TYPE,
-                        CLUBS.IS_OFFICIAL,
+                        CLUBS.ID, CLUBS.NAME, CLUBS.DESCRIPTION, CLUBS.TYPE, CLUBS.IS_OFFICIAL,
                         LOCATIONS.ADDRESS_TEXT,
+                        CLUBS.STORE_URL,
+                        CLUBS.GOFUNDME_URL,
+                        CLUBS.PHONE_NUMBER,
+                        CLUBS.EMAIL,
+
                         DSL.field(DSL.selectCount().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID))).as("followerCount"),
                         DSL.field(DSL.selectCount().from(CLUB_MEMBERSHIPS).where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID))).as("memberCount"),
                         DSL.field(DSL.exists(DSL.selectOne().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID).and(CLUB_FOLLOWS.USER_ID.eq(currentUserId))))).as("isFollowedByMe"),
@@ -89,13 +94,19 @@ public class ClubProfileRepository {
                 .from(CLUBS)
                 .leftJoin(LOCATIONS).on(LOCATIONS.ENTITY_ID.eq(CLUBS.ID).and(LOCATIONS.ENTITY_TYPE.eq("CLUB")))
                 .orderBy(CLUBS.CREATED_AT.desc())
-                .limit(50) // Safe limit for MVP
+                .limit(50)
                 .fetch(record -> new ClubProfileDto(
                         record.get(CLUBS.ID), record.get(CLUBS.NAME), record.get(CLUBS.DESCRIPTION),
                         record.get(CLUBS.TYPE), record.get(CLUBS.IS_OFFICIAL),
-                        record.get("followerCount", Integer.class), record.get("memberCount", Integer.class),
-                        record.get("isFollowedByMe", Boolean.class), record.get("isMember", Boolean.class),
-                        record.get(LOCATIONS.ADDRESS_TEXT)
+                        record.get("followerCount", Integer.class),
+                        record.get("memberCount", Integer.class),
+                        record.get("isFollowedByMe", Boolean.class),
+                        record.get("isMember", Boolean.class),
+                        record.get(LOCATIONS.ADDRESS_TEXT),
+                        record.get(CLUBS.STORE_URL),
+                        record.get(CLUBS.GOFUNDME_URL),
+                        record.get(CLUBS.PHONE_NUMBER),
+                        record.get(CLUBS.EMAIL)
                 ));
     }
 }

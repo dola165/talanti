@@ -117,6 +117,45 @@ public class DataSeeder implements CommandLineRunner {
                         .set(TRYOUTS.CREATED_BY, userIds.get(random.nextInt(userIds.size())))
                         .execute();
             }
+            // --- GENERATE A SQUAD FOR THE CLUB ---
+            Long squadId = dsl.insertInto(SQUADS)
+                    .set(SQUADS.CLUB_ID, clubId)
+                    .set(SQUADS.NAME, faker.team().name() + " U16 Boys")
+                    .set(SQUADS.CATEGORY, "U16")
+                    .set(SQUADS.GENDER, "MALE")
+                    .set(SQUADS.CREATED_AT, LocalDateTime.now())
+                    .returningResult(SQUADS.ID)
+                    .fetchOneInto(Long.class);
+
+            Long clubCreatorId = userIds.get(random.nextInt(userIds.size()));
+
+            // --- GENERATE A MATCH REQUEST (50% Chance) ---
+            if (random.nextBoolean()) {
+                dsl.insertInto(MATCH_REQUESTS)
+                        .set(MATCH_REQUESTS.CLUB_ID, clubId)
+                        .set(MATCH_REQUESTS.SQUAD_ID, squadId)
+                        .set(MATCH_REQUESTS.CREATOR_ID, clubCreatorId)
+                        .set(MATCH_REQUESTS.DESIRED_DATE, LocalDateTime.now().plusDays(random.nextInt(14) + 1))
+                        .set(MATCH_REQUESTS.LOCATION_PREF, "CAN_HOST")
+                        .set(MATCH_REQUESTS.LOCATION_ID, locationId)
+                        .set(MATCH_REQUESTS.STATUS, "OPEN")
+                        .set(MATCH_REQUESTS.CREATED_AT, LocalDateTime.now())
+                        .execute();
+            }
+
+            // --- GENERATE A TRYOUT (50% Chance) ---
+            if (random.nextBoolean()) {
+                dsl.insertInto(TRYOUTS)
+                        .set(TRYOUTS.CLUB_ID, clubId)
+                        .set(TRYOUTS.TITLE, "Open Trial: " + faker.options().option("Spring", "Summer", "Winter"))
+                        .set(TRYOUTS.DESCRIPTION, faker.lorem().sentence(5))
+                        .set(TRYOUTS.POSITION, faker.options().option("Any", "Goalkeeper", "Striker"))
+                        .set(TRYOUTS.AGE_GROUP, "U-21")
+                        .set(TRYOUTS.LOCATION_ID, locationId)
+                        .set(TRYOUTS.TRYOUT_DATE, LocalDateTime.now().plusDays(random.nextInt(21) + 1)) // Future dates!
+                        .set(TRYOUTS.CREATED_BY, clubCreatorId)
+                        .execute();
+            }
         }
 
         // --- 3. GENERATE 100 POSTS ---

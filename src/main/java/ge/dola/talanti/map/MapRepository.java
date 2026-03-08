@@ -11,8 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static ge.dola.talanti.jooq.Tables.CLUBS;
-import static ge.dola.talanti.jooq.Tables.LOCATIONS;
+import static ge.dola.talanti.jooq.Tables.*;
 import static ge.dola.talanti.jooq.tables.Tryouts.TRYOUTS;
 
 @Repository
@@ -96,6 +95,42 @@ public class MapRepository {
                 // Only show tryouts that haven't happened yet
                 .where(TRYOUTS.TRYOUT_DATE.greaterOrEqual(LocalDateTime.now()))
                 // Only show within the slider's radius
+                .and(distanceKm.le(radiusKm))
+                .orderBy(distanceKm.asc())
+                .limit(50)
+                .fetchInto(MapMarkerDto.class);
+    }
+
+
+    /**
+     * Finds OPEN Match Requests near a specific latitude/longitude using the Haversine formula.
+     */
+    public List<MapMarkerDto> findNearbyMatchRequests(Double lat, Double lng, Double radiusKm) {
+        Field<Double> distanceKm = DSL.field(
+                "6371 * acos(cos(radians({0})) * cos(radians(" + LOCATIONS.LATITUDE.getName() + ")) * " +
+                        "cos(radians(" + LOCATIONS.LONGITUDE.getName() + ") - radians({1})) + " +
+                        "sin(radians({0})) * sin(radians(" + LOCATIONS.LATITUDE.getName() + ")))",
+                Double.class,
+                lat, lng
+        );
+
+        return dsl.select(
+                        MATCH_REQUESTS.ID.as("entityId"),
+                        DSL.inline("MATCH_REQUEST").as("entityType"),
+                        // Combines Club Name + Squad Category (e.g. "Dinamo FC (U16)")
+                        DSL.concat(CLUBS.NAME, DSL.val(" ("), SQUADS.CATEGORY, DSL.val(")")).as("title"),
+                        MATCH_REQUESTS.LOCATION_PREF.as("subtitle"), // "CAN_HOST"
+                        LOCATIONS.LATITUDE,
+                        LOCATIONS.LONGITUDE,
+                        distanceKm.as("distanceKm")
+                )
+                .from(MATCH_REQUESTS)
+                .join(CLUBS).on(MATCH_REQUESTS.CLUB_ID.eq(CLUBS.ID))
+                .join(SQUADS).on(MATCH_REQUESTS.SQUAD_ID.eq(SQUADS.ID))
+                .join(LOCATIONS).on(MATCH_REQUESTS.LOCATION_ID.eq(LOCATIONS.ID))
+                .where(MATCH_REQUESTS.STATUS.eq("OPEN"))
+                // Only show games in the future
+                .and(MATCH_REQUESTS.DESIRED_DATE.greaterOrEqual(LocalDateTime.now()))
                 .and(distanceKm.le(radiusKm))
                 .orderBy(distanceKm.asc())
                 .limit(50)

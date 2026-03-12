@@ -23,11 +23,14 @@ public class MapService {
         if ("CLUB".equalsIgnoreCase(type)) {
             return mapRepository.findNearbyClubs(lat, lng, radiusKm);
         } else if ("TRYOUT".equalsIgnoreCase(type)) {
-            // NEW: Route TRYOUT requests to the new query!
             return mapRepository.findNearbyTryouts(lat, lng, radiusKm);
+        } else if ("MATCH_REQUEST".equalsIgnoreCase(type)) {
+            // NEW: Route Matches to the Map!
+            return mapRepository.findNearbyMatches(lat, lng, radiusKm);
         }
 
         return List.of();
     }
+
 
 }

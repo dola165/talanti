@@ -5,8 +5,10 @@ import org.jooq.DSLContext;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
-import static ge.dola.talanti.jooq.Tables.POSTS;
+import static ge.dola.talanti.jooq.Tables.*;
 import static ge.dola.talanti.jooq.tables.Likes.LIKES;
 
 @Repository
@@ -27,6 +29,20 @@ public class PostRepository {
                 .set(POSTS.CREATED_AT, LocalDateTime.now())
                 .returning()
                 .fetchOne();
+    }
+
+    // NEW: Batch insert the media links
+    public void linkMediaToPost(Long postId, List<Long> mediaIds) {
+        if (mediaIds == null || mediaIds.isEmpty()) return;
+
+        var insertStep = dsl.insertInto(POST_MEDIA, POST_MEDIA.POST_ID, POST_MEDIA.MEDIA_ID, POST_MEDIA.DISPLAY_ORDER);
+
+        int order = 0;
+        for (Long mediaId : mediaIds) {
+            insertStep = insertStep.values(postId, mediaId, order++);
+        }
+
+        insertStep.execute();
     }
 
     public boolean isPostLikedByUser(Long postId, Long userId) {
@@ -61,5 +77,35 @@ public class PostRepository {
                         .from(POSTS)
                         .where(POSTS.ID.eq(postId))
         );
+    }
+
+
+    public boolean isUserAdminOfClub(Long userId, Long clubId) {
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(CLUB_MEMBERSHIPS)
+                        .where(CLUB_MEMBERSHIPS.CLUB_ID.eq(clubId))
+                        .and(CLUB_MEMBERSHIPS.USER_ID.eq(userId))
+                        // Note: Adjust "ADMIN" to match whatever exact string you use for roles
+                        .and(CLUB_MEMBERSHIPS.ROLE.eq("ADMIN"))
+        );
+    }
+
+    /**
+     * Fetches a post record safely wrapped in an Optional.
+     */
+    public Optional<PostsRecord> findById(Long postId) {
+        return dsl.selectFrom(POSTS)
+                .where(POSTS.ID.eq(postId))
+                .fetchOptional();
+    }
+
+    /**
+     * Deletes a post from the database.
+     */
+    public void delete(Long postId) {
+        dsl.deleteFrom(POSTS)
+                .where(POSTS.ID.eq(postId))
+                .execute();
     }
 }

@@ -4,6 +4,7 @@ public record PublicUserProfileDto(
         Long id,
         String username,
         String fullName,
+        String role,
         String position,
         String preferredFoot,
         String bio,

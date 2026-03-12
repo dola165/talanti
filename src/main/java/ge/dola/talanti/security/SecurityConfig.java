@@ -1,5 +1,6 @@
 package ge.dola.talanti.security;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -20,34 +21,59 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final CookieAuthFilter cookieAuthFilter;
+    private final JwtService jwtService;
+    private final CustomUserDetailsService userDetailsService;
+    private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
 
-    // Injecting the filter we will create next
-    public SecurityConfig(CookieAuthFilter cookieAuthFilter) {
-        this.cookieAuthFilter = cookieAuthFilter;
+    // Inject the underlying services, NOT the filter itself
+    public SecurityConfig(JwtService jwtService,
+                          CustomUserDetailsService userDetailsService,
+                          OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler) { // Inject it
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        // Safely instantiate the filter here so it ONLY exists within Spring Security
+        JwtAuthenticationFilter jwtAuthFilter = new JwtAuthenticationFilter(jwtService, userDetailsService);
+
         http
-                // 1. Disable CSRF for now to simplify React integration.
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // 2. Enable CORS so React can safely send requests to our API.
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // 3. Make session strictly stateless. No JSESSIONID will be generated.
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // 4. Secure the routes
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Allow everyone to attempt login
-                        .requestMatchers("/api/public/**").permitAll() // For future public club/player searches
-                        .anyRequest().authenticated() // Everything else requires a valid cookie
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oAuth2SuccessHandler) // Tell Spring to use your custom handler
+                )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(401);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\": \"Unauthorized access. Please log in.\"}");
+                        })
                 )
 
-                // 5. Add our custom Cookie filter BEFORE Spring checks for standard passwords
-                .addFilterBefore(cookieAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .authorizeHttpRequests(auth -> auth
+                        // Permit internal dispatches
+                        .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
+
+                        // Exhaustive Swagger/OpenAPI permit list
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/favicon.ico"
+                        ).permitAll()
+
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/posts/**", "/api/media/**", "/api/feed/**", "/uploads/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -55,14 +81,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // UPDATE THIS LINE TO MATCH VITE's PORT:
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-
-        // CRITICAL: This explicitly allows the browser to send the HttpOnly cookie
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

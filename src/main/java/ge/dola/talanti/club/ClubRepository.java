@@ -6,10 +6,12 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-import static ge.dola.talanti.jooq.Tables.CLUBS;
+import static ge.dola.talanti.jooq.Tables.*;
 import static ge.dola.talanti.jooq.tables.ClubFollows.CLUB_FOLLOWS;
+import static ge.dola.talanti.jooq.tables.UserProfiles.USER_PROFILES;
 
 @Repository
 public class ClubRepository {
@@ -48,6 +50,8 @@ public class ClubRepository {
         );
     }
 
+
+
     public void followClub(Long userId, Long clubId) {
         dsl.insertInto(CLUB_FOLLOWS)
                 .set(CLUB_FOLLOWS.USER_ID, userId)
@@ -63,4 +67,5 @@ public class ClubRepository {
                 .and(CLUB_FOLLOWS.CLUB_ID.eq(clubId))
                 .execute();
     }
+
 }

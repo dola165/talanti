@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: dev
   application:
     name: talanti
 
@@ -36,8 +38,20 @@ logging:
     org.springframework.web.socket: INFO
 
 app:
-  jwt:
-    secret: ${JWT_SECRET}
-    expiration: 86400000
   mapbox:
-    token: ${MAPBOX_TOKEN}
+    token: ${MAPBOX_TOKEN:}
+
+# --- PRODUCTION JWT DEFAULTS ---
+# --- JWT CONFIGURATION ---
+jwt:
+  issuer: "talanti"
+  audience: "talanti-web"
+  # Syntax: ${ENV_VAR:default_value}
+  # If JWT_SECRET is missing, it automatically uses this valid 32-byte Base64 key!
+  secret: ${JWT_SECRET:TXlTdXBlclNlY3JldEtleVRoYXRJc0F0TGVhc3QzMkJ5dGVzTG9uZw==}
+  access-token-ttl: "PT15M"
+  refresh-token-ttl: "P30D"
+  cookie:
+    refresh-name: "tl_refresh"
+    secure: false      # Set to false so cookies work on localhost HTTP
+    same-site: "Lax"

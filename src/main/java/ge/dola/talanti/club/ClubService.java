@@ -1,12 +1,16 @@
 package ge.dola.talanti.club;
 
 import ge.dola.talanti.club.dto.ClubProfileDto;
+import ge.dola.talanti.club.dto.ClubRosterDto;
+import ge.dola.talanti.club.dto.ClubStaffDto;
+import ge.dola.talanti.club.dto.MyClubResponseDto;
 import ge.dola.talanti.jooq.tables.records.ClubsRecord;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -23,13 +27,16 @@ public class ClubService {
                 .orElseThrow(() -> new RuntimeException("Club not found"));
     }
 
+    public Optional<MyClubResponseDto> getMyPrimaryClub(Long userId) {
+        return clubProfileRepository.getMyPrimaryClub(userId);
+    }
     // Used for backend logic / updates
-    public void updateClubDescription(Long clubId, String newDescription) {
-        ClubsRecord club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new RuntimeException("Club not found"));
+    public void updateCalendarEvent(Long clubId, String eventId, ge.dola.talanti.club.dto.CalendarRequestDto request) {
+        clubProfileRepository.updateCalendarEvent(clubId, eventId, request);
+    }
 
-        club.setDescription(newDescription);
-        clubRepository.save(club);
+    public void deleteCalendarEvent(Long clubId, String eventId) {
+        clubProfileRepository.deleteCalendarEvent(clubId, eventId);
     }
 
     /**
@@ -58,6 +65,23 @@ public class ClubService {
     @Transactional(readOnly = true)
     public List<ClubProfileDto> getAllClubs(Long currentUserId) {
         return clubProfileRepository.getAllClubs(currentUserId);
+    }
+
+
+    public List<ClubRosterDto> getClubRoster(Long clubId) {
+        return clubProfileRepository.getClubRoster(clubId);
+    }
+
+    public List<ClubStaffDto> getClubStaff(Long clubId) {
+        return clubProfileRepository.getClubStaff(clubId);
+    }
+
+    public java.util.List<ge.dola.talanti.club.dto.CalendarEventDto> getClubSchedule(Long clubId) {
+        return clubProfileRepository.getClubSchedule(clubId);
+    }
+
+    public void createCalendarEvent(Long clubId, Long userId, ge.dola.talanti.club.dto.CalendarRequestDto request) {
+        clubProfileRepository.createCalendarEvent(clubId, userId, request);
     }
 
 }

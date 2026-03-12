@@ -1,57 +1,36 @@
 package ge.dola.talanti.security;
 
-import ge.dola.talanti.jooq.tables.records.UsersRecord;
 import lombok.Getter;
-import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.User;
 
 import java.util.Collection;
-import java.util.Collections;
 
 @Getter
-@Setter
-public class CustomUserDetails implements UserDetails {
+public class CustomUserDetails extends User {
 
-    private final UsersRecord user;
+    private final Long id;
+    private final String role;       // e.g. "ADMIN", "USER"
+    private final String fullName;
 
-    public CustomUserDetails(UsersRecord user) {
-        this.user = user;
+    public CustomUserDetails(Long id, String emailOrUsername, String password,
+                             String role, String fullName,
+                             Collection<? extends GrantedAuthority> authorities) {
+        super(emailOrUsername, password, authorities);
+        this.id = id;
+        this.role = role;
+        this.fullName = fullName;
     }
 
-    public Long getId() {
-        return user.getId();
+    public Long getUserId() { return id; }
+
+    /** * Safe utility for business logic checks (not for Spring annotations).
+     * Usage: if (user.hasRole("ADMIN")) {...}
+     */
+    public boolean hasRole(String roleName) {
+        String normalized = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName;
+        return getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(normalized::equalsIgnoreCase);
     }
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Mapping your system_role (Short) to a Spring Security Role.
-        // E.g., 0 = User, 1 = Admin. Adjust this logic as you define roles.
-        String roleName = user.getSystemRole() == 1 ? "ROLE_ADMIN" : "ROLE_USER";
-        return Collections.singletonList(new SimpleGrantedAuthority(roleName));
-    }
-
-    @Override
-    public String getPassword() {
-        // For OAuth2 users, this is usually null or empty.
-        return user.getPasswordHash();
-    }
-
-    @Override
-    public String getUsername() {
-        return user.getEmail(); // We use email as the primary identifier
-    }
-
-    @Override
-    public boolean isAccountNonExpired() { return true; }
-
-    @Override
-    public boolean isAccountNonLocked() { return true; }
-
-    @Override
-    public boolean isCredentialsNonExpired() { return true; }
-
-    @Override
-    public boolean isEnabled() { return true; }
 }

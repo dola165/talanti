@@ -1,67 +1,74 @@
 package ge.dola.talanti.security;
 
+import ge.dola.talanti.jooq.tables.records.Oauth2LoginsRecord;
 import ge.dola.talanti.jooq.tables.records.UsersRecord;
+import ge.dola.talanti.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.jooq.DSLContext;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
 
 import static ge.dola.talanti.jooq.Tables.OAUTH2_LOGINS;
 import static ge.dola.talanti.jooq.Tables.USERS;
+import static ge.dola.talanti.jooq.Tables.USER_PROFILES;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final DSLContext dsl;
-
-    public AuthService(DSLContext dsl) {
-        this.dsl = dsl;
-    }
+    private final UserRepository userRepository;
+    private final OAuth2LoginRepository oauth2LoginRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public UsersRecord processOAuthPostLogin(String email, String provider, String providerId) {
-        // 1. Check if this exact OAuth account has logged in before
-        var existingLogin = dsl.selectFrom(OAUTH2_LOGINS)
-                .where(OAUTH2_LOGINS.PROVIDER.eq(provider))
-                .and(OAUTH2_LOGINS.PROVIDER_ID.eq(providerId))
-                .fetchOptional();
-
-        if (existingLogin.isPresent()) {
-            // Return the existing user linked to this OAuth account
-            return dsl.selectFrom(USERS)
-                    .where(USERS.ID.eq(existingLogin.get().getUserId()))
-                    .fetchOne();
+        // 1. Check if OAuth2 login already exists
+        Optional<Oauth2LoginsRecord> oauthLogin = oauth2LoginRepository.findByProviderAndId(provider, providerId);
+        if (oauthLogin.isPresent()) {
+            return userRepository.findById(oauthLogin.get().getUserId()).orElseThrow();
         }
 
-        // 2. If no OAuth login exists, check if we already have a user with this email
-        UsersRecord user = dsl.selectFrom(USERS)
-                .where(USERS.EMAIL.eq(email))
-                .fetchOptional()
-                .orElse(null);
+        // 2. Check if user with this email already exists
+        Optional<UsersRecord> existingUser = userRepository.findByEmail(email);
+        Long userId;
 
-        // 3. If it's a completely new user, insert them into the users table
-        if (user == null) {
-            String generatedUsername = email.split("@")[0] + "_" + providerId.substring(0, 5);
+        if (existingUser.isPresent()) {
+            userId = existingUser.get().getId();
+        } else {
+            // CRITICAL FIX: Generate a random secure password to satisfy the NOT NULL DB constraint
+            String dummyPassword = UUID.randomUUID().toString();
+            String baseUsername = email.split("@")[0] + "_" + UUID.randomUUID().toString().substring(0, 5);
 
-            user = dsl.insertInto(USERS)
+            userId = dsl.insertInto(USERS)
+                    .set(USERS.USERNAME, baseUsername)
                     .set(USERS.EMAIL, email)
-                    .set(USERS.USERNAME, generatedUsername)
-                    .set(USERS.PASSWORD_HASH, "") // Empty because they use OAuth
-                    .set(USERS.SYSTEM_ROLE, (short) 0) // Default role
+                    .set(USERS.PASSWORD_HASH, passwordEncoder.encode(dummyPassword)) // <-- Fixes the crash
+                    .set(USERS.SYSTEM_ROLE, (short) 0)
                     .set(USERS.CREATED_AT, LocalDateTime.now())
-                    .returning()
-                    .fetchOne();
+                    .returningResult(USERS.ID)
+                    .fetchOneInto(Long.class);
+
+            // CRITICAL FIX: Create the Profile record so the frontend Onboarding interceptor works
+            dsl.insertInto(USER_PROFILES)
+                    .set(USER_PROFILES.USER_ID, userId)
+                    .set(USER_PROFILES.FULL_NAME, "New User")
+                    .execute();
         }
 
-        // 4. Link the OAuth provider to the user ID
+        // 3. Link the provider to the account
         dsl.insertInto(OAUTH2_LOGINS)
-                .set(OAUTH2_LOGINS.USER_ID, user.getId())
+                .set(OAUTH2_LOGINS.USER_ID, userId)
                 .set(OAUTH2_LOGINS.PROVIDER, provider)
                 .set(OAUTH2_LOGINS.PROVIDER_ID, providerId)
                 .set(OAUTH2_LOGINS.CREATED_AT, LocalDateTime.now())
                 .execute();
 
-        return user;
+        return userRepository.findById(userId).orElseThrow();
     }
 }

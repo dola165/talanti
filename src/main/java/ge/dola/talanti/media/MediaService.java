@@ -5,10 +5,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -16,34 +21,57 @@ import java.util.UUID;
 public class MediaService {
 
     private final MediaRepository mediaRepository;
-
-    // The folder where files will be saved in your project directory
     private final String UPLOAD_DIR = "uploads/";
 
+    // Keep this tight; add only what you truly support. Ported from your old code!
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
+    private static final Set<String> ALLOWED_IMAGE_MIME_PREFIXES = Set.of("image/");
+
     public MediaDto uploadFile(MultipartFile file, Long uploaderId) throws IOException {
-        // 1. Ensure the "uploads" directory exists
-        Path uploadPath = Paths.get(UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File cannot be empty");
         }
 
-        // 2. Generate a unique file name so uploads don't overwrite each other
-        String originalFilename = file.getOriginalFilename();
-        String extension = originalFilename != null && originalFilename.contains(".")
-                ? originalFilename.substring(originalFilename.lastIndexOf("."))
-                : "";
-        String uniqueFilename = UUID.randomUUID().toString() + extension;
+        // 1. DEEP SECURITY CHECK (From your Grasskicks FileStorageService)
+        if (!isImage(file)) {
+            throw new IllegalArgumentException("Invalid file type. Only true images are allowed.");
+        }
 
-        // 3. Save the actual file to your hard drive
+        Path uploadPath = Paths.get(UPLOAD_DIR);
+        if (!Files.exists(uploadPath)) Files.createDirectories(uploadPath);
+
+        // 2. Safe Extension Extraction
+        String ext = safeExtension(file.getOriginalFilename());
+        String uniqueFilename = UUID.randomUUID().toString() + "." + ext;
+
         Path filePath = uploadPath.resolve(uniqueFilename);
         Files.copy(file.getInputStream(), filePath);
 
-        // 4. Generate the public URL that React will use to display it
         String fileUrl = "/uploads/" + uniqueFilename;
-
-        // 5. Save the record in the database
         Long mediaId = mediaRepository.saveMedia(fileUrl, file.getContentType(), file.getSize(), uploaderId);
 
         return new MediaDto(mediaId, fileUrl, file.getContentType());
+    }
+
+    // --- SECURITY HELPER METHODS PORTED FROM OLD APP ---
+
+    private boolean isImage(MultipartFile file) {
+        String ct = file.getContentType();
+        boolean looksLikeImage = (ct != null && ALLOWED_IMAGE_MIME_PREFIXES.stream().anyMatch(ct::startsWith));
+        try (InputStream in = new BufferedInputStream(file.getInputStream())) {
+            // This physically verifies the file header is a real image
+            return ImageIO.read(in) != null && looksLikeImage;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private String safeExtension(String originalName) {
+        if (originalName == null) return "bin";
+        int dot = originalName.lastIndexOf('.');
+        String ext = (dot >= 0 && dot < originalName.length() - 1) ? originalName.substring(dot + 1) : "";
+        ext = ext.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", ""); // Strip weird characters
+        if (!ALLOWED_EXTENSIONS.contains(ext)) throw new IllegalArgumentException("Unsupported file extension.");
+        return ext;
     }
 }

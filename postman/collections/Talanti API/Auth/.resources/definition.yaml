@@ -1,0 +1,4 @@
+$kind: collection
+name: Auth
+description: Authentication endpoints — Register, Login, and Logout. Run Register or Login first to populate the `accessToken` and `userId` collection variables used by all other requests.
+order: 1000

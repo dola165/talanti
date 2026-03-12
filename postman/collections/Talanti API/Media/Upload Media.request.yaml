@@ -1,0 +1,30 @@
+$kind: http-request
+name: Upload Media
+method: POST
+url: '{{baseUrl}}/api/media/upload'
+order: 1000
+body:
+  type: formdata
+  content:
+    - key: file
+      type: file
+      src: ''
+      description: The media file to upload
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200 or 201", function () {
+          pm.expect(pm.response.code).to.be.oneOf([200, 201]);
+      });
+
+      pm.test("Response has url", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("url");
+          pm.collectionVariables.set("mediaUrl", jsonData.url);
+      });
+
+      pm.test("Response url is a string", function () {
+          var jsonData = pm.response.json();
+          pm.expect(typeof jsonData.url).to.equal("string");
+      });

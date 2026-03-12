@@ -1,0 +1,60 @@
+$kind: collection
+name: Talanti API
+description: |-
+  Comprehensive Postman collection for the Talanti Spring Boot API.
+
+  ## Overview
+  Talanti is a sports talent discovery platform. This collection covers all API endpoints including:
+  - **Auth** – Register, Login, Logout with JWT token management
+  - **Users** – Profile management, follow/unfollow, search
+  - **Feed** – Social feed, post likes, and comments
+  - **Posts** – Create, read, and delete posts
+  - **Clubs** – Club profiles, roster, staff, calendar, and feed
+  - **Tryouts** – Browse and apply to tryouts on the map
+  - **Admin-Tryouts** – Admin endpoints for creating and managing tryout applications
+  - **Map** – Geo-based discovery of clubs and tryouts
+  - **Media** – File upload endpoints
+  - **Notifications** – In-app notification management
+
+  ## Authentication
+  All protected endpoints use Bearer JWT authentication. Run **Auth/Register** or **Auth/Login** first — the test scripts automatically save `accessToken` and `userId` to collection variables.
+
+  ## Variables
+  | Variable | Description |
+  |---|---|
+  | `baseUrl` | Base URL of the API (default: http://localhost:8080) |
+  | `accessToken` | JWT access token (auto-set after login/register) |
+  | `userId` | Current user ID (auto-set after login/register) |
+  | `postId` | Last created post ID (auto-set after Create Post) |
+  | `clubId` | Club ID for club-related requests |
+  | `tryoutId` | Tryout ID (auto-set after Create Tryout) |
+  | `applicationId` | Application ID (auto-set after Apply to Tryout) |
+  | `notificationId` | Notification ID for notification requests |
+  | `mediaUrl` | Uploaded media URL (auto-set after Upload Media) |
+  | `commentId` | Comment ID (auto-set after Add Comment) |
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+variables:
+  - key: baseUrl
+    value: 'http://localhost:8080'
+  - key: accessToken
+    value: ''
+  - key: userId
+    value: ''
+  - key: postId
+    value: ''
+  - key: clubId
+    value: ''
+  - key: tryoutId
+    value: ''
+  - key: applicationId
+    value: ''
+  - key: notificationId
+    value: ''
+  - key: mediaUrl
+    value: ''
+  - key: commentId
+    value: ''

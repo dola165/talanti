@@ -1,0 +1,45 @@
+$kind: http-request
+name: Register
+method: POST
+url: '{{baseUrl}}/api/auth/register'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "testuser@example.com",
+      "password": "Test1234!"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has accessToken", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("accessToken");
+      });
+
+      pm.test("Response has userId", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("userId");
+      });
+
+      pm.test("Response has role equal to USER", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.role).to.equal("USER");
+      });
+
+      var jsonData = pm.response.json();
+      if (jsonData.accessToken) {
+          pm.collectionVariables.set("accessToken", jsonData.accessToken);
+      }
+      if (jsonData.userId) {
+          pm.collectionVariables.set("userId", jsonData.userId);
+      }

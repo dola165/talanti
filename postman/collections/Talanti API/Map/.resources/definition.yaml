@@ -1,0 +1,4 @@
+$kind: collection
+name: Map
+description: Geo-based discovery endpoints for finding clubs and tryouts near a given latitude/longitude within a radius (km).
+order: 8000

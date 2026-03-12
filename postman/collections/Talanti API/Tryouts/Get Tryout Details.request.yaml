@@ -1,0 +1,32 @@
+$kind: http-request
+name: Get Tryout Details
+method: GET
+url: '{{baseUrl}}/api/tryouts/{{tryoutId}}'
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has id", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+      });
+
+      pm.test("Response has title", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("title");
+      });
+
+      pm.test("Response has sport", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("sport");
+      });
+
+      pm.test("Response has date", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("date");
+      });

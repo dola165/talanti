@@ -1,0 +1,33 @@
+$kind: http-request
+name: Add Comment
+method: POST
+url: '{{baseUrl}}/api/posts/{{postId}}/comments'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "content": "This is a test comment!"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has id", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.collectionVariables.set("commentId", jsonData.id);
+      });
+
+      pm.test("Response has content", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("content");
+          pm.expect(jsonData.content).to.equal("This is a test comment!");
+      });

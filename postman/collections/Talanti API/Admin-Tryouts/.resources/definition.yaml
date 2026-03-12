@@ -1,0 +1,4 @@
+$kind: collection
+name: Admin-Tryouts
+description: Admin-only endpoints for creating tryouts and managing applicant statuses. Requires a CLUB_ADMIN or ADMIN role JWT token.
+order: 7000

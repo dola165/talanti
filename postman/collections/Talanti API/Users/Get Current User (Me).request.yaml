@@ -1,0 +1,32 @@
+$kind: http-request
+name: Get Current User (Me)
+method: GET
+url: '{{baseUrl}}/api/users/me'
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has id", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+      });
+
+      pm.test("Response has username", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("username");
+      });
+
+      pm.test("Response has email", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("email");
+      });
+
+      pm.test("Response has role", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("role");
+      });

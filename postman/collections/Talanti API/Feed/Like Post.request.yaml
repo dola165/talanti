@@ -1,0 +1,18 @@
+$kind: http-request
+name: Like Post
+method: POST
+url: '{{baseUrl}}/api/posts/{{postId}}/like'
+order: 4000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has liked (boolean)", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("liked");
+          pm.expect(typeof jsonData.liked).to.equal("boolean");
+      });

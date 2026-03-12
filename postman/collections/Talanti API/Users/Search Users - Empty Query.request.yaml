@@ -1,0 +1,21 @@
+$kind: http-request
+name: Search Users - Empty Query
+method: GET
+url: '{{baseUrl}}/api/users/search'
+order: 6000
+queryParams:
+  - key: q
+    value: ''
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is an empty array", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.be.an("array");
+          pm.expect(jsonData).to.have.lengthOf(0);
+      });

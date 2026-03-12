@@ -1,0 +1,18 @@
+$kind: http-request
+name: Logout
+method: POST
+url: '{{baseUrl}}/api/auth/logout'
+order: 5000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has message equal to 'Logged out successfully'", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("message");
+          pm.expect(jsonData.message).to.equal("Logged out successfully");
+      });

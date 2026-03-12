@@ -1,0 +1,4 @@
+$kind: collection
+name: Posts
+description: Create, retrieve, and delete posts. The Create Post request auto-saves `postId` to collection variables.
+order: 4000

@@ -1,0 +1,49 @@
+$kind: http-request
+name: Create Tryout
+method: POST
+url: '{{baseUrl}}/api/admin/tryouts'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Football Tryout 2025",
+      "sport": "FOOTBALL",
+      "date": "2025-08-01T10:00:00",
+      "location": {
+        "lat": 41.7151,
+        "lng": 44.8271,
+        "address": "Tbilisi, Georgia"
+      },
+      "description": "Open tryout for all positions",
+      "ageGroup": "U18",
+      "maxApplicants": 30
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has id", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.collectionVariables.set("tryoutId", jsonData.id);
+      });
+
+      pm.test("Response has title", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("title");
+          pm.expect(jsonData.title).to.equal("Football Tryout 2025");
+      });
+
+      pm.test("Response has sport", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("sport");
+          pm.expect(jsonData.sport).to.equal("FOOTBALL");
+      });

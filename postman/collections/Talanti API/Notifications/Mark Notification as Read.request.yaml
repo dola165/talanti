@@ -1,0 +1,18 @@
+$kind: http-request
+name: Mark Notification as Read
+method: PATCH
+url: '{{baseUrl}}/api/notifications/{{notificationId}}/read'
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has read set to true", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("read");
+          pm.expect(jsonData.read).to.equal(true);
+      });

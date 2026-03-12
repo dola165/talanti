@@ -1,0 +1,32 @@
+$kind: http-request
+name: Get Tryouts Map
+method: GET
+url: '{{baseUrl}}/api/tryouts/map'
+order: 1000
+queryParams:
+  - key: lat
+    value: '41.7151'
+  - key: lng
+    value: '44.8271'
+  - key: radius
+    value: '50'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is an array", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.be.an("array");
+      });
+
+      pm.test("Each tryout has id and location", function () {
+          var jsonData = pm.response.json();
+          if (jsonData.length > 0) {
+              pm.expect(jsonData[0]).to.have.property("id");
+              pm.expect(jsonData[0]).to.have.property("location");
+          }
+      });

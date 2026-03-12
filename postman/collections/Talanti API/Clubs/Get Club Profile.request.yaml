@@ -1,0 +1,27 @@
+$kind: http-request
+name: Get Club Profile
+method: GET
+url: '{{baseUrl}}/api/clubs/{{clubId}}'
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has id", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+      });
+
+      pm.test("Response has name", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("name");
+      });
+
+      pm.test("Response has sport", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("sport");
+      });

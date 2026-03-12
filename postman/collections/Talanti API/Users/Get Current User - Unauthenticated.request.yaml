@@ -1,0 +1,14 @@
+$kind: http-request
+name: Get Current User - Unauthenticated (Negative Test)
+method: GET
+url: '{{baseUrl}}/api/users/me'
+order: 2000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 401", function () {
+          pm.response.to.have.status(401);
+      });

@@ -1,0 +1,32 @@
+$kind: http-request
+name: Apply to Tryout
+method: POST
+url: '{{baseUrl}}/api/tryouts/{{tryoutId}}/apply'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "message": "I am interested in this tryout!"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 201 or 200", function () {
+          pm.expect(pm.response.code).to.be.oneOf([200, 201]);
+      });
+
+      pm.test("Response has applicationId", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.collectionVariables.set("applicationId", jsonData.id);
+      });
+
+      pm.test("Response has status", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("status");
+      });

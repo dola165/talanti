@@ -1,0 +1,25 @@
+$kind: http-request
+name: Get Club Feed
+method: GET
+url: '{{baseUrl}}/api/clubs/{{clubId}}/feed'
+order: 5000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is an array", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.be.an("array");
+      });
+
+      pm.test("Each post has id and content", function () {
+          var jsonData = pm.response.json();
+          if (jsonData.length > 0) {
+              pm.expect(jsonData[0]).to.have.property("id");
+              pm.expect(jsonData[0]).to.have.property("content");
+          }
+      });

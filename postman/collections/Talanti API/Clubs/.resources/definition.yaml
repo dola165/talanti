@@ -1,0 +1,4 @@
+$kind: collection
+name: Clubs
+description: Club profile, roster, staff, calendar, and feed endpoints. Set the `clubId` collection variable before running these requests.
+order: 5000

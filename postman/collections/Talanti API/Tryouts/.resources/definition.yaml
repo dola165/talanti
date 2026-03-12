@@ -1,0 +1,4 @@
+$kind: collection
+name: Tryouts
+description: Browse tryouts on the map, view tryout details, and submit applications. Run Create Tryout (Admin-Tryouts) first to populate `tryoutId`.
+order: 6000

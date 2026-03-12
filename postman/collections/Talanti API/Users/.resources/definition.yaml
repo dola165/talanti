@@ -1,0 +1,4 @@
+$kind: collection
+name: Users
+description: User profile management, follow/unfollow social graph, and user search endpoints.
+order: 2000

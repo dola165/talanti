@@ -1,0 +1,24 @@
+$kind: http-request
+name: Upload Media - Invalid File Type
+method: POST
+url: '{{baseUrl}}/api/media/upload'
+order: 2000
+body:
+  type: formdata
+  content:
+    - key: file
+      type: file
+      src: ''
+      description: Invalid file type (e.g. .exe)
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 400 or 415", function () {
+          pm.expect(pm.response.code).to.be.oneOf([400, 415]);
+      });
+
+      pm.test("Response has error message", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("message");
+      });

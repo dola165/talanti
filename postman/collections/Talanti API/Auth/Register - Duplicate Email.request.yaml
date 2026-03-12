@@ -1,0 +1,28 @@
+$kind: http-request
+name: Register - Duplicate Email (Negative Test)
+method: POST
+url: '{{baseUrl}}/api/auth/register'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "testuser@example.com",
+      "password": "Test1234!"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 409", function () {
+          pm.response.to.have.status(409);
+      });
+
+      pm.test("Response has error field equal to 'Email already in use.'", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("error");
+          pm.expect(jsonData.error).to.equal("Email already in use.");
+      });

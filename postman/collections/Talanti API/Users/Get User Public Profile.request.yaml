@@ -1,0 +1,12 @@
+$kind: http-request
+name: Get User Public Profile
+method: GET
+url: '{{baseUrl}}/api/users/{{userId}}'
+order: 3000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });

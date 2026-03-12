@@ -1,0 +1,28 @@
+$kind: http-request
+name: Get Post by ID
+method: GET
+url: '{{baseUrl}}/api/posts/{{postId}}'
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has id", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData.id).to.equal(pm.collectionVariables.get("postId"));
+      });
+
+      pm.test("Response has content", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("content");
+      });
+
+      pm.test("Response has authorId", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("authorId");
+      });

@@ -1,0 +1,4 @@
+$kind: collection
+name: Feed
+description: Social feed, post likes, and comment endpoints. Requires a valid `postId` collection variable — run Create Post first.
+order: 3000

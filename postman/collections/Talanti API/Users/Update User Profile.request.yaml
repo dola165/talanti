@@ -1,0 +1,40 @@
+$kind: http-request
+name: Update User Profile
+method: PUT
+url: '{{baseUrl}}/api/users/me'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "fullName": "Updated Name",
+      "bio": "Updated bio from Postman",
+      "sport": "FOOTBALL",
+      "position": "MIDFIELDER"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has id", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+      });
+
+      pm.test("Response has updated fullName", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("fullName");
+          pm.expect(jsonData.fullName).to.equal("Updated Name");
+      });
+
+      pm.test("Response has bio", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("bio");
+      });

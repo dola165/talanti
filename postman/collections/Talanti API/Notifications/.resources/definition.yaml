@@ -1,0 +1,4 @@
+$kind: collection
+name: Notifications
+description: In-app notification management — list, mark individual, or mark all notifications as read.
+order: 10000

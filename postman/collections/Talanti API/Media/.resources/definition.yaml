@@ -1,0 +1,4 @@
+$kind: collection
+name: Media
+description: File upload endpoints for profile pictures, post media, and other assets. Supports multipart/form-data uploads.
+order: 9000

@@ -1,0 +1,15 @@
+$kind: http-request
+name: Get Feed
+method: GET
+url: '{{baseUrl}}/api/feed'
+order: 1000
+queryParams:
+  - key: limit
+    value: '20'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });

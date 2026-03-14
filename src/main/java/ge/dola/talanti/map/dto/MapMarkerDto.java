@@ -2,10 +2,17 @@ package ge.dola.talanti.map.dto;
 
 public record MapMarkerDto(
         Long entityId,
-        String entityType,  // "CLUB", "USER"
-        String title,       // Club name or User name
-        String subtitle,    // "Amateur", "Forward"
+        String entityType,  // "CLUB", "TRYOUT", "MATCH_REQUEST"
+        String title,
+        String subtitle,
         Double latitude,
         Double longitude,
-        Double distanceKm   // How far away it is from the user's center point
+        Double distanceKm,
+
+        // --- NEW FIELDS FOR FIGMA UI ---
+        Integer members,
+        Integer followers,
+        Boolean verified,
+        String date,        // For matches and tryouts
+        String fee          // e.g. "Free", "$50"
 ) {}

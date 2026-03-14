@@ -9,7 +9,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +19,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static ge.dola.talanti.jooq.Tables.USERS;
 import static ge.dola.talanti.jooq.Tables.USER_PROFILES;
@@ -97,67 +95,6 @@ public class AuthController {
                 "role", user.getRole(),
                 "fullName", user.getFullName()
         ));
-    }
-
-    // --- NEW: THE SILENT REFRESH ENDPOINT ---
-    @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@CookieValue(name = "tl_refresh", required = false) String refreshToken, HttpServletResponse response) {
-        if (refreshToken == null || refreshToken.isBlank()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No refresh token provided"));
-        }
-
-        try {
-            // 1. Parse and validate the token signature
-            var jws = jwtService.parse(refreshToken);
-            String jti = jws.getPayload().getId();
-            Long userId = Long.valueOf(jws.getPayload().getSubject());
-            String typ = jws.getPayload().get("typ", String.class);
-
-            // 2. Ensure it's a refresh token AND it's valid in the database
-            if (!"refresh".equals(typ) || !jwtService.isRefreshTokenValidAndNotRevoked(jti)) {
-                throw new RuntimeException("Invalid or revoked refresh token");
-            }
-
-            // 3. Security Best Practice: Token Rotation (Revoke old, issue new)
-            jwtService.revokeRefreshToken(jti);
-
-            // 4. Load the user to get fresh roles
-            CustomUserDetails userDetails = userDetailsService.loadUserById(userId);
-            List<String> authorities = userDetails.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .collect(Collectors.toList());
-
-            // 5. Generate a brand new pair of tokens
-            var newTokens = jwtService.generateTokens(
-                    userId,
-                    userDetails.getUsername(),
-                    authorities
-            );
-
-            // 6. Set the NEW Refresh Token in the HttpOnly cookie using your existing helper
-            addRefreshCookie(response, newTokens.refreshToken(), newTokens.refreshExpiresAt());
-
-            // 7. Return the new Access Token to React
-            return ResponseEntity.ok(Map.of(
-                    "accessToken", newTokens.accessToken(),
-                    "expiresAt", newTokens.accessExpiresAt().toEpochMilli()
-            ));
-
-        } catch (Exception e) {
-            // If anything fails (expired or tampered), wipe the cookie so the frontend knows to log them out
-            var cookieBuilder = ResponseCookie.from(props.getCookie().getRefreshName(), "")
-                    .httpOnly(true)
-                    .secure(Boolean.TRUE.equals(props.getCookie().getSecure()))
-                    .path("/api/auth")
-                    .maxAge(0);
-
-            if (props.getCookie().getDomain() != null && !props.getCookie().getDomain().isEmpty()) {
-                cookieBuilder.domain(props.getCookie().getDomain());
-            }
-
-            response.addHeader(HttpHeaders.SET_COOKIE, cookieBuilder.build().toString());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Refresh token expired or invalid"));
-        }
     }
 
     @PostMapping("/logout")

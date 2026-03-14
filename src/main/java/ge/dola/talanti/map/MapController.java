@@ -17,29 +17,23 @@ public class MapController {
         this.mapService = mapService;
     }
 
-    /**
-     * Endpoint to drop a location pin for a club or user.
-     * POST /api/map/location
-     */
     @PostMapping("/location")
     public ResponseEntity<Void> addLocation(@RequestBody SaveLocationDto dto) {
         mapService.addLocation(dto);
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * The main endpoint for the React map to fetch pins.
-     * GET /api/map/nearby?lat=41.7151&lng=44.8271&radius=10.0&type=CLUB
-     * (Default coordinates are Tbilisi city center)
-     */
     @GetMapping("/nearby")
     public ResponseEntity<List<MapMarkerDto>> getNearby(
             @RequestParam Double lat,
             @RequestParam Double lng,
-            @RequestParam(defaultValue = "15.0") Double radius, // Default 15km radius
-            @RequestParam(defaultValue = "CLUB") String type) {
-
-        List<MapMarkerDto> markers = mapService.getNearbyEntities(lat, lng, radius, type);
-        return ResponseEntity.ok(markers);
+            @RequestParam(defaultValue = "15.0") Double radius,
+            @RequestParam(defaultValue = "CLUB") String type,
+            @RequestParam(required = false) List<String> gender,
+            @RequestParam(required = false) List<String> ageGroups,
+            @RequestParam(required = false) List<String> cities,
+            @RequestParam(required = false) List<String> countries
+    ) {
+        return ResponseEntity.ok(mapService.getNearbyEntities(lat, lng, radius, type, gender, ageGroups, cities, countries));
     }
 }

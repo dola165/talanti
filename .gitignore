@@ -32,6 +32,4 @@ build/
 ### VS Code ###
 .vscode/
 
-## Environments
-#.env
-#.env.local
+.env

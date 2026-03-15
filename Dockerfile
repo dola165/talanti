@@ -1,27 +1,14 @@
-# 1. Build Stage
-FROM maven:3.9-eclipse-temurin-21-alpine AS build
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-# Skip tests to speed up build
-RUN mvn clean package -DskipTests
-
-# 2. Run Stage
-FROM eclipse-temurin:21-jre-alpine
+# Only use the Run Stage
+FROM amazoncorretto:21-alpine-jdk
 WORKDIR /app
 
-# SECURITY UPGRADE: Create a non-root user and group
+# Security: non-root user
 RUN addgroup -S talantigroup && adduser -S talantiuser -G talantigroup
-
-# Copy the built JAR from the previous stage
-COPY --from=build /app/target/*.jar app.jar
-
-# Create the uploads directory and give the non-root user ownership
 RUN mkdir uploads && chown -R talantiuser:talantigroup /app
-
-# Switch to the non-root user
 USER talantiuser:talantigroup
 
-EXPOSE 8080
+# Copy the JAR you built locally from your target folder
+COPY target/talanti-0.0.1-SNAPSHOT.jar app.jar
 
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

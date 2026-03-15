@@ -4,7 +4,6 @@ import ge.dola.talanti.club.dto.ClubProfileDto;
 import ge.dola.talanti.club.dto.ClubRosterDto;
 import ge.dola.talanti.club.dto.ClubStaffDto;
 import ge.dola.talanti.club.dto.MyClubResponseDto;
-import ge.dola.talanti.jooq.tables.records.ClubsRecord;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,10 +15,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ClubService {
 
-
     private final ClubRepository clubRepository;
     private final ClubProfileRepository clubProfileRepository;
-
+    // 🟢 REMOVED: PostRepository (FeedService handles this now)
 
     // Used for the UI display
     public ClubProfileDto getClubProfile(Long clubId, Long currentUserId) {
@@ -30,6 +28,7 @@ public class ClubService {
     public Optional<MyClubResponseDto> getMyPrimaryClub(Long userId) {
         return clubProfileRepository.getMyPrimaryClub(userId);
     }
+
     // Used for backend logic / updates
     public void updateCalendarEvent(Long clubId, String eventId, ge.dola.talanti.club.dto.CalendarRequestDto request) {
         clubProfileRepository.updateCalendarEvent(clubId, eventId, request);
@@ -37,6 +36,11 @@ public class ClubService {
 
     public void deleteCalendarEvent(Long clubId, String eventId) {
         clubProfileRepository.deleteCalendarEvent(clubId, eventId);
+    }
+
+    @Transactional
+    public void updateClubImages(Long clubId, ge.dola.talanti.club.dto.ClubUpdateDto updateDto) {
+        clubRepository.updateClubImages(clubId, updateDto);
     }
 
     /**
@@ -67,7 +71,6 @@ public class ClubService {
         return clubProfileRepository.getAllClubs(currentUserId);
     }
 
-
     public List<ClubRosterDto> getClubRoster(Long clubId) {
         return clubProfileRepository.getClubRoster(clubId);
     }
@@ -84,4 +87,5 @@ public class ClubService {
         clubProfileRepository.createCalendarEvent(clubId, userId, request);
     }
 
+    // 🟢 REMOVED: getClubFeed() is now handled correctly by FeedService directly in the Controller
 }

@@ -7,12 +7,14 @@ public record ClubProfileDto(
         String type,
         boolean isOfficial,
 
-        // Stats
         int followerCount,
         int memberCount,
 
-        // Logged-in User's Context
         boolean isFollowedByMe,
         boolean isMember,
-        String addressText
+        String addressText,
+
+
+        String logoUrl,
+        String bannerUrl
 ) {}

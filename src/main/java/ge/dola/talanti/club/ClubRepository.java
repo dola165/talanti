@@ -1,10 +1,13 @@
 package ge.dola.talanti.club;
 
+import ge.dola.talanti.club.dto.ClubUpdateDto;
 import ge.dola.talanti.jooq.tables.records.ClubsRecord;
 import org.jooq.DSLContext;
+import org.jooq.Field;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,6 +69,28 @@ public class ClubRepository {
                 .where(CLUB_FOLLOWS.USER_ID.eq(userId))
                 .and(CLUB_FOLLOWS.CLUB_ID.eq(clubId))
                 .execute();
+    }
+
+    public void updateClubImages(Long clubId, ClubUpdateDto dto) {
+
+        Map<Field<?>, Object> updates = new HashMap<>();
+
+// Dynamically build the map of fields we want to update
+        if (dto.logoUrl() != null) {
+            updates.put(CLUBS.LOGO_URL, dto.logoUrl());
+        }
+
+        if (dto.bannerUrl() != null) {
+            updates.put(CLUBS.BANNER_URL, dto.bannerUrl());
+        }
+
+        // Only execute the query if there is actually something to update
+        if (!updates.isEmpty()) {
+            dsl.update(CLUBS)
+                    .set(updates)
+                    .where(CLUBS.ID.eq(clubId))
+                    .execute();
+        }
     }
 
 }

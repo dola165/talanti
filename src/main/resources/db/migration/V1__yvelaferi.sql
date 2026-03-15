@@ -4,25 +4,25 @@ CREATE TABLE IF NOT EXISTS users (
 
                                      username VARCHAR(50) NOT NULL UNIQUE,
 
-                                     email VARCHAR(255) UNIQUE, -- Email might be optional if phone is used
+    email VARCHAR(255) UNIQUE, -- Email might be optional if phone is used
 
-                                     phone_number VARCHAR(20) UNIQUE,
+    phone_number VARCHAR(20) UNIQUE,
 
-                                     password_hash VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
 
 
 
     -- 0 = User, 1 = Admin, etc. (We map this in Java later)
 
-                                     system_role SMALLINT NOT NULL DEFAULT 0,
+    system_role SMALLINT NOT NULL DEFAULT 0,
 
 
 
-                                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-                                     last_seen TIMESTAMP
+    last_seen TIMESTAMP
 
-);
+    );
 
 
 
@@ -40,9 +40,9 @@ CREATE TABLE IF NOT EXISTS conversations (
 
                                              name VARCHAR(100), -- Optional: for named group chats
 
-                                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-);
+    );
 
 
 
@@ -52,13 +52,13 @@ CREATE TABLE IF NOT EXISTS conversation_participants (
 
                                                          conversation_id BIGINT NOT NULL REFERENCES conversations(id),
 
-                                                         user_id BIGINT NOT NULL REFERENCES users(id),
+    user_id BIGINT NOT NULL REFERENCES users(id),
 
-                                                         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                                         PRIMARY KEY (conversation_id, user_id)
+    PRIMARY KEY (conversation_id, user_id)
 
-);
+    );
 
 
 
@@ -70,13 +70,13 @@ CREATE TABLE IF NOT EXISTS messages (
 
                                         conversation_id BIGINT NOT NULL REFERENCES conversations(id),
 
-                                        sender_id BIGINT NOT NULL REFERENCES users(id),
+    sender_id BIGINT NOT NULL REFERENCES users(id),
 
-                                        content TEXT NOT NULL,
+    content TEXT NOT NULL,
 
-                                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-);
+    );
 
 
 
@@ -90,21 +90,21 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 
                                              user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
 
-                                             full_name VARCHAR(100),
+    full_name VARCHAR(100),
 
-                                             bio TEXT,
+    bio TEXT,
 
-                                             position VARCHAR(50),
+    position VARCHAR(50),
 
-                                             age INTEGER,
+    age INTEGER,
 
-                                             preferred_foot VARCHAR(20),
+    preferred_foot VARCHAR(20),
 
-                                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-);
+    );
 
 
 
@@ -122,13 +122,13 @@ CREATE TABLE IF NOT EXISTS message_reads (
 
                                              message_id BIGINT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
 
-                                             user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                             read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                             PRIMARY KEY (message_id, user_id)
+    PRIMARY KEY (message_id, user_id)
 
-);
+    );
 
 
 
@@ -142,13 +142,13 @@ CREATE TABLE IF NOT EXISTS media (
 
                                      type VARCHAR(50),
 
-                                     size_bytes BIGINT,
+    size_bytes BIGINT,
 
-                                     uploaded_by BIGINT REFERENCES users(id),
+    uploaded_by BIGINT REFERENCES users(id),
 
-                                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-);
+    );
 
 
 
@@ -160,21 +160,21 @@ CREATE TABLE IF NOT EXISTS notifications (
 
                                              user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                             type VARCHAR(30) NOT NULL,
+    type VARCHAR(30) NOT NULL,
 
-                                             entity_type VARCHAR(30),
+    entity_type VARCHAR(30),
 
-                                             entity_id BIGINT,
+    entity_id BIGINT,
 
-                                             title VARCHAR(255),
+    title VARCHAR(255),
 
-                                             body TEXT,
+    body TEXT,
 
-                                             is_read BOOLEAN DEFAULT FALSE,
+    is_read BOOLEAN DEFAULT FALSE,
 
-                                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-);
+    );
 
 
 
@@ -194,15 +194,15 @@ CREATE TABLE IF NOT EXISTS oauth2_logins (
 
                                              user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                             provider VARCHAR(50) NOT NULL,
+    provider VARCHAR(50) NOT NULL,
 
-                                             provider_id VARCHAR(255) NOT NULL,
+    provider_id VARCHAR(255) NOT NULL,
 
-                                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                             PRIMARY KEY (user_id, provider)
+    PRIMARY KEY (user_id, provider)
 
-);
+    );
 
 
 
@@ -214,15 +214,15 @@ CREATE TABLE IF NOT EXISTS locations (
 
                                          name VARCHAR(255) NOT NULL,
 
-                                         address VARCHAR(255),
+    address VARCHAR(255),
 
-                                         latitude DECIMAL(10, 8) NOT NULL,
+    latitude DECIMAL(10, 8) NOT NULL,
 
-                                         longitude DECIMAL(11, 8) NOT NULL,
+    longitude DECIMAL(11, 8) NOT NULL,
 
-                                         type VARCHAR(20)
+    type VARCHAR(20)
 
-);
+    );
 
 
 
@@ -232,19 +232,23 @@ CREATE TABLE IF NOT EXISTS clubs (
 
                                      name VARCHAR(255) NOT NULL,
 
-                                     description TEXT,
+    description TEXT,
 
-                                     location_id BIGINT REFERENCES locations(id) ON DELETE SET NULL,
+    location_id BIGINT REFERENCES locations(id) ON DELETE SET NULL,
 
-                                     type VARCHAR(20) NOT NULL,
+    type VARCHAR(20) NOT NULL,
 
-                                     is_official BOOLEAN DEFAULT FALSE,
+    logo_url VARCHAR(255),
 
-                                     created_by BIGINT NOT NULL REFERENCES users(id),
+    banner_url VARCHAR(255),
 
-                                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    is_official BOOLEAN DEFAULT FALSE,
 
-);
+    created_by BIGINT NOT NULL REFERENCES users(id),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+    );
 
 
 
@@ -254,13 +258,13 @@ CREATE TABLE IF NOT EXISTS follows (
 
                                        follower_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                       following_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    following_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                       PRIMARY KEY (follower_id, following_id)
+    PRIMARY KEY (follower_id, following_id)
 
-);
+    );
 
 
 
@@ -268,13 +272,13 @@ CREATE TABLE IF NOT EXISTS club_follows (
 
                                             user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                            club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+    club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
 
-                                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                            PRIMARY KEY (user_id, club_id)
+    PRIMARY KEY (user_id, club_id)
 
-);
+    );
 
 
 
@@ -282,15 +286,15 @@ CREATE TABLE IF NOT EXISTS club_memberships (
 
                                                 club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
 
-                                                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                                role VARCHAR(50) NOT NULL,
+    role VARCHAR(50) NOT NULL,
 
-                                                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                                PRIMARY KEY (club_id, user_id)
+    PRIMARY KEY (club_id, user_id)
 
-);
+    );
 
 
 
@@ -302,15 +306,15 @@ CREATE TABLE IF NOT EXISTS posts (
 
                                      author_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                     club_id BIGINT REFERENCES clubs(id) ON DELETE CASCADE,
+    club_id BIGINT REFERENCES clubs(id) ON DELETE CASCADE,
 
-                                     content TEXT NOT NULL,
+    content TEXT NOT NULL,
 
-                                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                     is_public BOOLEAN DEFAULT TRUE
+    is_public BOOLEAN DEFAULT TRUE
 
-);
+    );
 
 
 
@@ -318,13 +322,13 @@ CREATE TABLE IF NOT EXISTS post_media (
 
                                           post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
 
-                                          media_id BIGINT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    media_id BIGINT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
 
-                                          display_order INTEGER DEFAULT 0,
+    display_order INTEGER DEFAULT 0,
 
-                                          PRIMARY KEY (post_id, media_id)
+    PRIMARY KEY (post_id, media_id)
 
-);
+    );
 
 
 
@@ -332,13 +336,13 @@ CREATE TABLE IF NOT EXISTS likes (
 
                                      post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
 
-                                     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                     PRIMARY KEY (post_id, user_id)
+    PRIMARY KEY (post_id, user_id)
 
-);
+    );
 
 
 
@@ -348,13 +352,13 @@ CREATE TABLE IF NOT EXISTS comments (
 
                                         post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
 
-                                        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                        content TEXT NOT NULL,
+    content TEXT NOT NULL,
 
-                                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-);
+    );
 
 
 
@@ -362,13 +366,13 @@ CREATE TABLE IF NOT EXISTS post_seen (
 
                                          post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
 
-                                         user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                         seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                         PRIMARY KEY (post_id, user_id)
+    PRIMARY KEY (post_id, user_id)
 
-);
+    );
 
 
 
@@ -380,25 +384,25 @@ CREATE TABLE IF NOT EXISTS tryouts (
 
                                        club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
 
-                                       title VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
 
-                                       description TEXT,
+    description TEXT,
 
-                                       position VARCHAR(50),
+    position VARCHAR(50),
 
-                                       age_group VARCHAR(50),
+    age_group VARCHAR(50),
 
-                                       location_id BIGINT REFERENCES locations(id),
+    location_id BIGINT REFERENCES locations(id),
 
-                                       tryout_date TIMESTAMP NOT NULL,
+    tryout_date TIMESTAMP NOT NULL,
 
-                                       deadline TIMESTAMP,
+    deadline TIMESTAMP,
 
-                                       created_by BIGINT NOT NULL REFERENCES users(id),
+    created_by BIGINT NOT NULL REFERENCES users(id),
 
-                                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-);
+    );
 
 
 
@@ -408,19 +412,19 @@ CREATE TABLE IF NOT EXISTS tryout_applications (
 
                                                    tryout_id BIGINT NOT NULL REFERENCES tryouts(id) ON DELETE CASCADE,
 
-                                                   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
-                                                   status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
 
-                                                   message TEXT,
+    message TEXT,
 
-                                                   applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                                   reviewed_at TIMESTAMP,
+    reviewed_at TIMESTAMP,
 
-                                                   reviewed_by BIGINT REFERENCES users(id)
+    reviewed_by BIGINT REFERENCES users(id)
 
-);
+    );
 
 
 
@@ -444,23 +448,23 @@ ALTER TABLE locations DROP COLUMN IF EXISTS name;
 
 DO $$
 
-    BEGIN
+BEGIN
 
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='locations' AND column_name='type') THEN
 
-            ALTER TABLE locations RENAME COLUMN type TO entity_type;
+ALTER TABLE locations RENAME COLUMN type TO entity_type;
 
-        ELSE
+ELSE
 
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='locations' AND column_name='entity_type') THEN
 
-                ALTER TABLE locations ADD COLUMN entity_type VARCHAR(50);
+ALTER TABLE locations ADD COLUMN entity_type VARCHAR(50);
 
-            END IF;
+END IF;
 
-        END IF;
+END IF;
 
-    END $$;
+END $$;
 
 
 
@@ -474,15 +478,15 @@ ALTER TABLE locations ALTER COLUMN entity_type SET NOT NULL;
 
 DO $$
 
-    BEGIN
+BEGIN
 
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='locations' AND column_name='address') THEN
 
-            ALTER TABLE locations RENAME COLUMN address TO address_text;
+ALTER TABLE locations RENAME COLUMN address TO address_text;
 
-        END IF;
+END IF;
 
-    END $$;
+END $$;
 
 
 
@@ -508,7 +512,7 @@ INSERT INTO public.conversations (id, name, created_at)
 
 VALUES (1, 'Global Grassroots', NOW())
 
-ON CONFLICT (id) DO NOTHING;
+    ON CONFLICT (id) DO NOTHING;
 
 
 -- 1. Create the Post Tags table (The core of the scouting engine)
@@ -527,49 +531,49 @@ CREATE INDEX idx_post_tags_user_id ON public.post_tags(user_id);
 CREATE TABLE IF NOT EXISTS squads (
                                       id BIGSERIAL PRIMARY KEY,
                                       club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
-                                      name VARCHAR(100) NOT NULL,
-                                      category VARCHAR(50) NOT NULL,
-                                      gender VARCHAR(20) DEFAULT 'MALE',
-                                      head_coach_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                                      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    gender VARCHAR(20) DEFAULT 'MALE',
+    head_coach_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
 
 -- 2. SQUAD PLAYERS (The specific roster for a squad)
 CREATE TABLE IF NOT EXISTS squad_players (
                                              squad_id BIGINT NOT NULL REFERENCES squads(id) ON DELETE CASCADE,
-                                             user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                                             jersey_number INTEGER,
-                                             squad_role VARCHAR(50) DEFAULT 'PLAYER',
-                                             joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                             PRIMARY KEY (squad_id, user_id)
-);
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    jersey_number INTEGER,
+    squad_role VARCHAR(50) DEFAULT 'PLAYER',
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (squad_id, user_id)
+    );
 
 -- 3. MATCH REQUESTS (The MatchFinder feature)
 CREATE TABLE IF NOT EXISTS match_requests (
                                               id BIGSERIAL PRIMARY KEY,
                                               club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
-                                              squad_id BIGINT NOT NULL REFERENCES squads(id) ON DELETE CASCADE,
-                                              creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                                              desired_date TIMESTAMP NOT NULL,
-                                              location_pref VARCHAR(50) NOT NULL,
-                                              location_id BIGINT REFERENCES locations(id) ON DELETE SET NULL,
-                                              status VARCHAR(50) NOT NULL DEFAULT 'OPEN',
-                                              created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+    squad_id BIGINT NOT NULL REFERENCES squads(id) ON DELETE CASCADE,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    desired_date TIMESTAMP NOT NULL,
+    location_pref VARCHAR(50) NOT NULL,
+    location_id BIGINT REFERENCES locations(id) ON DELETE SET NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'OPEN',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
 
 -- 4. CAREER HISTORY (Stats tied to seasons)
 CREATE TABLE IF NOT EXISTS career_history (
                                               id BIGSERIAL PRIMARY KEY,
                                               user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                                              club_name VARCHAR(100) NOT NULL,
-                                              season VARCHAR(20) NOT NULL,
-                                              category VARCHAR(50),
-                                              appearances INTEGER DEFAULT 0,
-                                              goals INTEGER DEFAULT 0,
-                                              assists INTEGER DEFAULT 0,
-                                              clean_sheets INTEGER DEFAULT 0,
-                                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    club_name VARCHAR(100) NOT NULL,
+    season VARCHAR(20) NOT NULL,
+    category VARCHAR(50),
+    appearances INTEGER DEFAULT 0,
+    goals INTEGER DEFAULT 0,
+    assists INTEGER DEFAULT 0,
+    clean_sheets INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
 -- 5. ALTER USER PROFILES (Adding the Scouting fields)
 ALTER TABLE user_profiles
@@ -582,13 +586,13 @@ ALTER TABLE user_profiles
 CREATE TABLE IF NOT EXISTS club_events (
                                            id BIGSERIAL PRIMARY KEY,
                                            club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
-                                           title VARCHAR(255) NOT NULL,
-                                           event_type VARCHAR(50) NOT NULL, -- 'TRAINING', 'MEETING', etc.
-                                           event_date TIMESTAMP NOT NULL,
-                                           location_text VARCHAR(255),
-                                           created_by BIGINT NOT NULL REFERENCES users(id),
-                                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    title VARCHAR(255) NOT NULL,
+    event_type VARCHAR(50) NOT NULL, -- 'TRAINING', 'MEETING', etc.
+    event_date TIMESTAMP NOT NULL,
+    location_text VARCHAR(255),
+    created_by BIGINT NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
 CREATE INDEX IF NOT EXISTS idx_club_events_club_date ON club_events(club_id, event_date);
 
@@ -598,10 +602,10 @@ CREATE INDEX IF NOT EXISTS idx_club_events_club_date ON club_events(club_id, eve
 CREATE TABLE IF NOT EXISTS auth_tokens (
                                            id BIGSERIAL PRIMARY KEY,
                                            jti VARCHAR(128) NOT NULL UNIQUE,
-                                           user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                                           expires_at TIMESTAMP NOT NULL,
-                                           revoked BOOLEAN NOT NULL DEFAULT FALSE
-);
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMP NOT NULL,
+    revoked BOOLEAN NOT NULL DEFAULT FALSE
+    );
 
 CREATE INDEX idx_auth_tokens_jti ON auth_tokens(jti);
 CREATE INDEX idx_auth_tokens_user ON auth_tokens(user_id);
@@ -610,9 +614,9 @@ CREATE INDEX idx_auth_tokens_user ON auth_tokens(user_id);
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
                                                      id BIGSERIAL PRIMARY KEY,
                                                      token VARCHAR(128) NOT NULL UNIQUE,
-                                                     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                                                     expires_at TIMESTAMP NOT NULL,
-                                                     used BOOLEAN NOT NULL DEFAULT FALSE
-);
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE
+    );
 
 CREATE INDEX idx_password_reset_tokens_token ON password_reset_tokens(token);

@@ -25,19 +25,16 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
 
-    // Inject the underlying services, NOT the filter itself
-    public SecurityConfig(JwtService jwtService,
-                          CustomUserDetailsService userDetailsService,
-                          OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler) { // Inject it
+    public SecurityConfig(JwtService jwtService, CustomUserDetailsService userDetailsService, OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.oAuth2SuccessHandler = oAuth2SuccessHandler;
     }
 
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        // Safely instantiate the filter here so it ONLY exists within Spring Security
         JwtAuthenticationFilter jwtAuthFilter = new JwtAuthenticationFilter(jwtService, userDetailsService);
 
         http
@@ -45,7 +42,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2SuccessHandler) // Tell Spring to use your custom handler
+                        .successHandler(oAuth2SuccessHandler)
                 )
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
@@ -56,8 +53,12 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        // Permit internal dispatches
+                        // 1. ALLOW INTERNAL DISPATCHES & ERRORS
                         .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
+                        .requestMatchers("/error").permitAll() // Stops 404s/500s from turning into 401s
+
+                        // 2. ALLOW ALL CORS PREFLIGHT REQUESTS (Fixes the PUT upload bug)
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
                         // Exhaustive Swagger/OpenAPI permit list
                         .requestMatchers(
@@ -69,8 +70,15 @@ public class SecurityConfig {
                                 "/favicon.ico"
                         ).permitAll()
 
+                        // 3. SECURE EXACT AND SUB-PATHS
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/posts/**", "/api/media/**", "/api/feed/**", "/uploads/**").permitAll()
+                        .requestMatchers(
+                                "/api/posts", "/api/posts/**",
+                                "/api/media", "/api/media/**",
+                                "/api/feed", "/api/feed/**",
+                                "/uploads/**"
+                        ).permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -21,16 +21,24 @@ public class ClubProfileRepository {
 
     public Optional<ClubProfileDto> getClubProfile(Long clubId, Long currentUserId) {
         return dsl.select(
-                        CLUBS.ID,
-                        CLUBS.NAME,
-                        CLUBS.DESCRIPTION,
-                        CLUBS.TYPE,
-                        CLUBS.IS_OFFICIAL,
-                        LOCATIONS.ADDRESS_TEXT,
+                        CLUBS.ID.as("id"),
+                        CLUBS.NAME.as("name"),
+                        CLUBS.DESCRIPTION.as("description"),
+                        CLUBS.TYPE.as("type"),
+                        CLUBS.IS_OFFICIAL.as("isOfficial"),
+
+                        // Counts come next in the Record
                         DSL.field(DSL.selectCount().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID))).as("followerCount"),
                         DSL.field(DSL.selectCount().from(CLUB_MEMBERSHIPS).where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID))).as("memberCount"),
+
+                        // Booleans
                         DSL.field(DSL.exists(DSL.selectOne().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID).and(CLUB_FOLLOWS.USER_ID.eq(currentUserId))))).as("isFollowedByMe"),
-                        DSL.field(DSL.exists(DSL.selectOne().from(CLUB_MEMBERSHIPS).where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID).and(CLUB_MEMBERSHIPS.USER_ID.eq(currentUserId))))).as("isMember")
+                        DSL.field(DSL.exists(DSL.selectOne().from(CLUB_MEMBERSHIPS).where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID).and(CLUB_MEMBERSHIPS.USER_ID.eq(currentUserId))))).as("isMember"),
+
+                        // Strings at the end
+                        LOCATIONS.ADDRESS_TEXT.as("addressText"),
+                        CLUBS.LOGO_URL.as("logoUrl"),
+                        CLUBS.BANNER_URL.as("bannerUrl")
                 )
                 .from(CLUBS)
                 .leftJoin(LOCATIONS).on(LOCATIONS.ENTITY_ID.eq(CLUBS.ID).and(LOCATIONS.ENTITY_TYPE.eq("CLUB")))
@@ -55,7 +63,7 @@ public class ClubProfileRepository {
     public List<ClubProfileDto> getAllClubs(Long currentUserId) {
         return dsl.select(
                         CLUBS.ID, CLUBS.NAME, CLUBS.DESCRIPTION, CLUBS.TYPE, CLUBS.IS_OFFICIAL,
-                        LOCATIONS.ADDRESS_TEXT,
+                        LOCATIONS.ADDRESS_TEXT,CLUBS.LOGO_URL, CLUBS.BANNER_URL,
                         DSL.field(DSL.selectCount().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID))).as("followerCount"),
                         DSL.field(DSL.selectCount().from(CLUB_MEMBERSHIPS).where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID))).as("memberCount"),
                         DSL.field(DSL.exists(DSL.selectOne().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID).and(CLUB_FOLLOWS.USER_ID.eq(currentUserId))))).as("isFollowedByMe"),

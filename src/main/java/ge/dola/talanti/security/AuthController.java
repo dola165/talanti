@@ -140,4 +140,51 @@ public class AuthController {
 
         res.addHeader(HttpHeaders.SET_COOKIE, cookieBuilder.build().toString());
     }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@CookieValue(name = "tl_refresh", required = false) String refreshToken, HttpServletResponse response) {
+
+        // 1. Check if the cookie even exists
+        if (refreshToken == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "No refresh token provided."));
+        }
+
+        try {
+            // 2. Parse and validate the JWT signature
+            var jws = jwtService.parse(refreshToken);
+            String jti = jws.getPayload().getId();
+            String type = jws.getPayload().get("typ", String.class);
+
+            // 3. Ensure it's actually a refresh token and hasn't been revoked in the DB
+            if (!"refresh".equals(type) || !jwtService.isRefreshTokenValidAndNotRevoked(jti)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid or revoked refresh token."));
+            }
+
+            // 4. Extract user ID and load current user details
+            Long userId = Long.valueOf(jws.getPayload().getSubject());
+            CustomUserDetails user = userDetailsService.loadUserById(userId);
+
+            // 5. Generate a brand new token pair (Refresh Token Rotation)
+            var tokens = jwtService.generateTokens(
+                    user.getUserId(),
+                    user.getUsername(),
+                    List.of("ROLE_" + user.getRole())
+            );
+
+            // 6. Revoke the old refresh token so it can't be used again
+            jwtService.revokeRefreshToken(jti);
+
+            // 7. Attach the new refresh token as an HttpOnly cookie
+            addRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
+
+            // 8. Return the new shiny access token to Axios
+            return ResponseEntity.ok(Map.of(
+                    "accessToken", tokens.accessToken()
+            ));
+
+        } catch (Exception e) {
+            // Catches expired tokens or malformed JWTs
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Token refresh failed."));
+        }
+    }
 }

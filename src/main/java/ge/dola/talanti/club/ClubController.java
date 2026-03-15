@@ -4,6 +4,8 @@ import ge.dola.talanti.club.dto.ClubProfileDto;
 import ge.dola.talanti.club.dto.ClubRosterDto;
 import ge.dola.talanti.club.dto.ClubStaffDto;
 import ge.dola.talanti.club.dto.MyClubResponseDto;
+import ge.dola.talanti.feed.FeedService;
+import ge.dola.talanti.feed.dto.FeedResponseDto;
 import ge.dola.talanti.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/clubs")
@@ -20,62 +21,41 @@ import java.util.Optional;
 public class ClubController {
 
     private final ClubService clubService;
+    private final FeedService feedService;
 
-    /**
-     * React will call: GET /api/clubs/1
-     */
+    // 🟢 FIXED: Added the missing base endpoint for BrowseClubsPage
+    @GetMapping
+    public ResponseEntity<List<ClubProfileDto>> getAllClubs(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        Long currentUserId = (currentUser != null) ? currentUser.getId() : -1L;
+        return ResponseEntity.ok(clubService.getAllClubs(currentUserId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ClubProfileDto> getClubProfile(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
-
-        if (currentUser == null) {
-            return ResponseEntity.status(401).build();
-        }
-
+        if (currentUser == null) return ResponseEntity.status(401).build();
         ClubProfileDto profile = clubService.getClubProfile(id, currentUser.getId());
         return ResponseEntity.ok(profile);
     }
 
-    /**
-     * React will call: POST /api/clubs/1/follow
-     */
-    @PostMapping("/{id}/follow")
-    public ResponseEntity<?> toggleFollow(
+    @GetMapping("/my-club")
+    public ResponseEntity<MyClubResponseDto> getMyClub(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        if (currentUser == null) return ResponseEntity.status(401).build();
+        return clubService.getMyPrimaryClub(currentUser.getId())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
+    }
+
+    // --- 🟢 TABS ENDPOINTS ---
+
+    @GetMapping("/{id}/feed")
+    public ResponseEntity<Map<String, Object>> getClubFeed(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
-
-        if (currentUser == null) {
-            return ResponseEntity.status(401).body("Not authenticated");
-        }
-
-        try {
-            boolean isNowFollowing = clubService.toggleClubFollow(id, currentUser.getId());
-
-            // Return a simple map that Spring converts to JSON: { "isFollowed": true }
-            return ResponseEntity.ok(Map.of("isFollowed", isNowFollowing));
-
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-    @GetMapping("/my-club")
-    public ResponseEntity<?> getMyClub(@AuthenticationPrincipal CustomUserDetails currentUser) {
         if (currentUser == null) return ResponseEntity.status(401).build();
-
-        Optional<MyClubResponseDto> myClub = clubService.getMyPrimaryClub(currentUser.getId());
-
-        if (myClub.isPresent()) {
-            return ResponseEntity.ok(myClub.get());
-        } else {
-            // Return 204 No Content (Standard practice for "You don't have one")
-            return ResponseEntity.noContent().build();
-        }
-    }
-    @GetMapping
-    public ResponseEntity<List<ClubProfileDto>> getAllClubs(@AuthenticationPrincipal CustomUserDetails currentUser) {
-        Long userId = currentUser != null ? currentUser.getId() : 1L; // Fallback to user 1 for MVP testing
-        return ResponseEntity.ok(clubService.getAllClubs(userId));
+        FeedResponseDto response = feedService.getClubFeed(id, currentUser.getId(), null, 50);
+        return ResponseEntity.ok(Map.of("posts", response.posts()));
     }
 
     @GetMapping("/{id}/roster")
@@ -88,22 +68,41 @@ public class ClubController {
         return ResponseEntity.ok(clubService.getClubStaff(id));
     }
 
-    @GetMapping("/{id}/calendar")
+    @GetMapping("/{id}/schedule")
     public ResponseEntity<List<ge.dola.talanti.club.dto.CalendarEventDto>> getClubSchedule(@PathVariable Long id) {
         return ResponseEntity.ok(clubService.getClubSchedule(id));
     }
 
+    // --- EXISTING ENDPOINTS ---
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Void> updateClubImages(
+            @PathVariable Long id,
+            @RequestBody ge.dola.talanti.club.dto.ClubUpdateDto updateDto,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        if (currentUser == null) return ResponseEntity.status(401).build();
+        clubService.updateClubImages(id, updateDto);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/follow")
+    public ResponseEntity<Map<String, Boolean>> followClub(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        if (currentUser == null) return ResponseEntity.status(401).build();
+        boolean isFollowing = clubService.toggleClubFollow(id, currentUser.getId());
+        return ResponseEntity.ok(Map.of("following", isFollowing));
+    }
+
     @PostMapping("/{id}/calendar")
-    public ResponseEntity<?> addCalendarEvent(
+    public ResponseEntity<?> createCalendarEvent(
             @PathVariable Long id,
             @RequestBody ge.dola.talanti.club.dto.CalendarRequestDto request,
             @AuthenticationPrincipal CustomUserDetails user) {
-
         if (user == null) return ResponseEntity.status(401).build();
         clubService.createCalendarEvent(id, user.getId(), request);
         return ResponseEntity.ok(Map.of("message", "Event deployed successfully."));
     }
-
 
     @PutMapping("/{id}/calendar/{eventId}")
     public ResponseEntity<?> updateCalendarEvent(
@@ -111,9 +110,7 @@ public class ClubController {
             @PathVariable String eventId,
             @RequestBody ge.dola.talanti.club.dto.CalendarRequestDto request,
             @AuthenticationPrincipal CustomUserDetails user) {
-
         if (user == null) return ResponseEntity.status(401).build();
-
         try {
             clubService.updateCalendarEvent(id, eventId, request);
             return ResponseEntity.ok(Map.of("message", "Event updated successfully."));
@@ -127,9 +124,7 @@ public class ClubController {
             @PathVariable Long id,
             @PathVariable String eventId,
             @AuthenticationPrincipal CustomUserDetails user) {
-
         if (user == null) return ResponseEntity.status(401).build();
-
         try {
             clubService.deleteCalendarEvent(id, eventId);
             return ResponseEntity.ok(Map.of("message", "Event deleted successfully."));

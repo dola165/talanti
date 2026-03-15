@@ -1,18 +1,18 @@
 package ge.dola.talanti.media;
 
 import ge.dola.talanti.media.dto.MediaDto;
+import ge.dola.talanti.media.storage.StorageProvider;
 import lombok.RequiredArgsConstructor;
+import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -21,57 +21,56 @@ import java.util.UUID;
 public class MediaService {
 
     private final MediaRepository mediaRepository;
-    private final String UPLOAD_DIR = "uploads/";
+    private final StorageProvider storageProvider;
 
-    // Keep this tight; add only what you truly support. Ported from your old code!
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
     private static final Set<String> ALLOWED_IMAGE_MIME_PREFIXES = Set.of("image/");
 
-    public MediaDto uploadFile(MultipartFile file, Long uploaderId) throws IOException {
+    public MediaDto uploadFile(MultipartFile file, Long uploaderId, String context) throws Exception {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File cannot be empty");
         }
 
-        // 1. DEEP SECURITY CHECK (From your Grasskicks FileStorageService)
         if (!isImage(file)) {
             throw new IllegalArgumentException("Invalid file type. Only true images are allowed.");
         }
 
-        Path uploadPath = Paths.get(UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) Files.createDirectories(uploadPath);
+        byte[] optimizedBytes = optimizeImage(file, context);
+        InputStream inputStream = new ByteArrayInputStream(optimizedBytes);
 
-        // 2. Safe Extension Extraction
-        String ext = safeExtension(file.getOriginalFilename());
-        String uniqueFilename = UUID.randomUUID().toString() + "." + ext;
+        // CHANGE: Force .jpg extension instead of .webp
+        String uniqueFilename = UUID.randomUUID().toString() + ".jpg";
 
-        Path filePath = uploadPath.resolve(uniqueFilename);
-        Files.copy(file.getInputStream(), filePath);
+        // CHANGE: Delegate to the Storage Provider with image/jpeg
+        String fileUrl = storageProvider.store(inputStream, uniqueFilename, "image/jpeg");
 
-        String fileUrl = "/uploads/" + uniqueFilename;
-        Long mediaId = mediaRepository.saveMedia(fileUrl, file.getContentType(), file.getSize(), uploaderId);
+        // CHANGE: Save metadata to DB as image/jpeg
+        Long mediaId = mediaRepository.saveMedia(fileUrl, "image/jpeg", optimizedBytes.length, uploaderId);
 
-        return new MediaDto(mediaId, fileUrl, file.getContentType());
+        return new MediaDto(mediaId, fileUrl, "image/jpeg");
     }
 
-    // --- SECURITY HELPER METHODS PORTED FROM OLD APP ---
+    private byte[] optimizeImage(MultipartFile file, String context) throws IOException {
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+
+        int width = "banner".equalsIgnoreCase(context) ? 1200 : 400;
+        int height = "banner".equalsIgnoreCase(context) ? 400 : 400;
+
+        Thumbnails.of(file.getInputStream())
+                .size(width, height)
+                .outputFormat("jpg") // CHANGE: Use highly-supported jpg encoder
+                .outputQuality(0.85)
+                .toOutputStream(os);
+
+        return os.toByteArray();
+    }
 
     private boolean isImage(MultipartFile file) {
         String ct = file.getContentType();
         boolean looksLikeImage = (ct != null && ALLOWED_IMAGE_MIME_PREFIXES.stream().anyMatch(ct::startsWith));
         try (InputStream in = new BufferedInputStream(file.getInputStream())) {
-            // This physically verifies the file header is a real image
             return ImageIO.read(in) != null && looksLikeImage;
         } catch (IOException e) {
             return false;
         }
-    }
-
-    private String safeExtension(String originalName) {
-        if (originalName == null) return "bin";
-        int dot = originalName.lastIndexOf('.');
-        String ext = (dot >= 0 && dot < originalName.length() - 1) ? originalName.substring(dot + 1) : "";
-        ext = ext.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", ""); // Strip weird characters
-        if (!ALLOWED_EXTENSIONS.contains(ext)) throw new IllegalArgumentException("Unsupported file extension.");
-        return ext;
     }
 }

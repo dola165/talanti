@@ -1,14 +1,26 @@
 services:
   postgres:
     image: 'postgres:16-alpine'
+    container_name: talanti-db
     ports:
       - '5432:5432'
-    labels:
-      org.springframework.boot.service-connection: postgres
     environment:
       - 'POSTGRES_DB=talanti'
       - 'POSTGRES_PASSWORD=dola'
       - 'POSTGRES_USER=postgres'
     volumes:
-      # Persist data so you don't lose users when you restart
       - './postgres-data:/var/lib/postgresql/data'
+
+  talanti-backend:
+    image: 'dola164/talanti:latest'
+    container_name: talanti-app
+    ports:
+      - '8080:8080'
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/talanti
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=dola
+      # If you use Spring AI, add your key here:
+      # - SPRING_AI_OPENAI_API_KEY=your_key_here

@@ -1,7 +1,9 @@
 package ge.dola.talanti.post;
 
+import ge.dola.talanti.feed.dto.CommentDto;
 import ge.dola.talanti.jooq.tables.records.PostsRecord;
 import org.jooq.DSLContext;
+import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -29,6 +31,29 @@ public class PostRepository {
                 .set(POSTS.CREATED_AT, LocalDateTime.now())
                 .returning()
                 .fetchOne();
+    }
+
+    public CommentDto addComment(Long postId, Long userId, String content) {
+        Long commentId = dsl.insertInto(COMMENTS)
+                .set(COMMENTS.POST_ID, postId)
+                .set(COMMENTS.USER_ID, userId)
+                .set(COMMENTS.CONTENT, content)
+                .set(COMMENTS.CREATED_AT, java.time.LocalDateTime.now())
+                .returningResult(COMMENTS.ID)
+                .fetchOneInto(Long.class);
+
+        // Fetch it back immediately to return the full DTO (with the author's name) to React
+        return dsl.select(
+                        COMMENTS.ID,
+                        DSL.coalesce(USER_PROFILES.FULL_NAME, USERS.USERNAME).as("authorName"),
+                        COMMENTS.CONTENT,
+                        COMMENTS.CREATED_AT
+                )
+                .from(COMMENTS)
+                .join(USERS).on(COMMENTS.USER_ID.eq(USERS.ID))
+                .leftJoin(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
+                .where(COMMENTS.ID.eq(commentId))
+                .fetchOneInto(ge.dola.talanti.feed.dto.CommentDto.class);
     }
 
     // NEW: Batch insert the media links
@@ -86,8 +111,8 @@ public class PostRepository {
                         .from(CLUB_MEMBERSHIPS)
                         .where(CLUB_MEMBERSHIPS.CLUB_ID.eq(clubId))
                         .and(CLUB_MEMBERSHIPS.USER_ID.eq(userId))
-                        // Note: Adjust "ADMIN" to match whatever exact string you use for roles
-                        .and(CLUB_MEMBERSHIPS.ROLE.eq("ADMIN"))
+                        // 🛡️ THE FIX: Allow both the Owner and the Club Admins to post
+                        .and(CLUB_MEMBERSHIPS.ROLE.in("OWNER", "CLUB_ADMIN"))
         );
     }
 

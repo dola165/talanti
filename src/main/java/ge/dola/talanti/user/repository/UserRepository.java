@@ -2,6 +2,8 @@ package ge.dola.talanti.user.repository;
 
 import ge.dola.talanti.jooq.tables.records.UsersRecord;
 import ge.dola.talanti.user.dto.UserSearchDto;
+import ge.dola.talanti.util.PageResult;
+import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.springframework.stereotype.Repository;
 
@@ -9,9 +11,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static ge.dola.talanti.jooq.Tables.USERS;
-import static ge.dola.talanti.jooq.Tables.USER_PROFILES;
-import static ge.dola.talanti.jooq.tables.Follows.FOLLOWS;
+import static ge.dola.talanti.jooq.Tables.*;
 
 @Repository
 public class UserRepository {
@@ -20,18 +20,6 @@ public class UserRepository {
 
     public UserRepository(DSLContext dsl) {
         this.dsl = dsl;
-    }
-
-    public Optional<UsersRecord> findByEmail(String email) {
-        return dsl.selectFrom(USERS)
-                .where(USERS.EMAIL.eq(email))
-                .fetchOptional();
-    }
-
-    public Optional<UsersRecord> findById(Long id) {
-        return dsl.selectFrom(USERS)
-                .where(USERS.ID.eq(id))
-                .fetchOptional();
     }
 
     public boolean isFollowingUser(Long followerId, Long followingId) {
@@ -44,6 +32,8 @@ public class UserRepository {
     }
 
     public void followUser(Long followerId, Long followingId) {
+        // We still provide the followerId for the explicit SQL INSERT statement,
+        // but Postgres will reject it if it doesn't match the current_user_id context.
         dsl.insertInto(FOLLOWS)
                 .set(FOLLOWS.FOLLOWER_ID, followerId)
                 .set(FOLLOWS.FOLLOWING_ID, followingId)
@@ -52,32 +42,62 @@ public class UserRepository {
                 .execute();
     }
 
-    public void unfollowUser(Long followerId, Long followingId) {
+    public void unfollowUser(Long currentUserId, Long targetUserId) {
         dsl.deleteFrom(FOLLOWS)
-                .where(FOLLOWS.FOLLOWER_ID.eq(followerId))
-                .and(FOLLOWS.FOLLOWING_ID.eq(followingId))
+                .where(FOLLOWS.FOLLOWER_ID.eq(currentUserId))
+                .and(FOLLOWS.FOLLOWING_ID.eq(targetUserId)) // Always specify both sides of the relationship
                 .execute();
     }
 
-    public List<UserSearchDto> searchUsers(String query) {
+    public PageResult<UserSearchDto> searchUsers(String query, int page, int size) {
         String searchPattern = "%" + query + "%";
 
-        return dsl.select(
+        Condition searchCondition = USER_PROFILES.FULL_NAME.likeIgnoreCase(searchPattern)
+                .or(USERS.USERNAME.likeIgnoreCase(searchPattern));
+
+        long total = dsl.selectCount()
+                .from(USERS)
+                .join(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
+                .where(searchCondition)
+                .fetchOne(0, Long.class);
+
+        List<UserSearchDto> content = dsl.select(
                         USERS.ID,
                         USER_PROFILES.FULL_NAME,
                         USERS.USERNAME,
-                        USER_PROFILES.POSITION
+                        PLAYER_DETAILS.PRIMARY_POSITION
                 )
                 .from(USERS)
                 .join(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
-                .where(USER_PROFILES.FULL_NAME.likeIgnoreCase(searchPattern)
-                        .or(USERS.USERNAME.likeIgnoreCase(searchPattern)))
-                .limit(10) // Only return top 10 results for the dropdown
-                .fetch(record -> new UserSearchDto(
-                        record.get(USERS.ID),
-                        record.get(USER_PROFILES.FULL_NAME),
-                        record.get(USERS.USERNAME),
-                        record.get(USER_PROFILES.POSITION)
-                ));
+                .leftJoin(PLAYER_DETAILS).on(USERS.ID.eq(PLAYER_DETAILS.USER_ID))
+                .where(searchCondition)
+                .limit(size)
+                .offset(page * size)
+                .fetchInto(UserSearchDto.class);
+
+        return new PageResult<>(content, page, size, total);
+    }
+    public Optional<UsersRecord> findById(Long id) {
+        return dsl.selectFrom(USERS)
+                .where(USERS.ID.eq(id))
+                .fetchOptional();
+    }
+
+    public Optional<ge.dola.talanti.jooq.tables.records.UsersRecord> findByEmail(String email) {
+        return dsl.selectFrom(USERS)
+                .where(USERS.EMAIL.eq(email))
+                .fetchOptional();
+    }
+
+    public boolean existsByEmail(String email) {
+        return dsl.fetchExists(
+                dsl.selectOne().from(USERS).where(USERS.EMAIL.eq(email))
+        );
+    }
+
+    public boolean existsByUsername(String username) {
+        return dsl.fetchExists(
+                dsl.selectOne().from(USERS).where(USERS.USERNAME.eq(username))
+        );
     }
 }

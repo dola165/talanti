@@ -1,13 +1,16 @@
 package ge.dola.talanti.feed;
 
+import ge.dola.talanti.feed.dto.CommentDto;
 import ge.dola.talanti.feed.dto.CreatePostRequest;
 import ge.dola.talanti.feed.dto.FeedPostDto;
 import ge.dola.talanti.feed.dto.FeedResponseDto;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true) // 🛡️ ADD THIS TO THE TOP OF THE CLASS
 public class FeedService {
 
     private final FeedRepository feedRepository;
@@ -54,20 +57,10 @@ public class FeedService {
         return new FeedResponseDto(posts, nextCursor);
     }
 
-    public boolean toggleLike(Long postId, Long userId) {
-        return feedRepository.toggleLike(postId, userId);
-    }
 
-    public java.util.List<ge.dola.talanti.feed.dto.CommentDto> getComments(Long postId) {
+    public List<CommentDto> getComments(Long postId) {
         return feedRepository.getCommentsForPost(postId);
     }
 
-    public ge.dola.talanti.feed.dto.CommentDto addComment(Long postId, Long userId, String content) {
-        return feedRepository.addComment(postId, userId, content);
-    }
-
-    public void createPost(Long authorId, CreatePostRequest request) {
-        feedRepository.createPost(authorId, request);
-    }
 
 }

@@ -177,25 +177,7 @@ public class FeedRepository {
                 ));
     }
 
-    // --- LIKES ---
-    public boolean toggleLike(Long postId, Long userId) {
-        boolean exists = dsl.fetchExists(
-                dsl.selectOne().from(LIKES)
-                        .where(LIKES.POST_ID.eq(postId).and(LIKES.USER_ID.eq(userId)))
-        );
 
-        if (exists) {
-            dsl.deleteFrom(LIKES).where(LIKES.POST_ID.eq(postId).and(LIKES.USER_ID.eq(userId))).execute();
-            return false; // No longer liked
-        } else {
-            dsl.insertInto(LIKES)
-                    .set(LIKES.POST_ID, postId)
-                    .set(LIKES.USER_ID, userId)
-                    .set(LIKES.CREATED_AT, java.time.LocalDateTime.now())
-                    .execute();
-            return true; // Now liked
-        }
-    }
 
     // --- COMMENTS ---
     public java.util.List<ge.dola.talanti.feed.dto.CommentDto> getCommentsForPost(Long postId) {
@@ -213,72 +195,7 @@ public class FeedRepository {
                 .fetchInto(ge.dola.talanti.feed.dto.CommentDto.class);
     }
 
-    public ge.dola.talanti.feed.dto.CommentDto addComment(Long postId, Long userId, String content) {
-        Long commentId = dsl.insertInto(COMMENTS)
-                .set(COMMENTS.POST_ID, postId)
-                .set(COMMENTS.USER_ID, userId)
-                .set(COMMENTS.CONTENT, content)
-                .set(COMMENTS.CREATED_AT, java.time.LocalDateTime.now())
-                .returningResult(COMMENTS.ID)
-                .fetchOneInto(Long.class);
-
-        // Fetch it back immediately to return the full DTO (with the author's name) to React
-        return dsl.select(
-                        COMMENTS.ID,
-                        DSL.coalesce(USER_PROFILES.FULL_NAME, USERS.USERNAME).as("authorName"),
-                        COMMENTS.CONTENT,
-                        COMMENTS.CREATED_AT
-                )
-                .from(COMMENTS)
-                .join(USERS).on(COMMENTS.USER_ID.eq(USERS.ID))
-                .leftJoin(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
-                .where(COMMENTS.ID.eq(commentId))
-                .fetchOneInto(ge.dola.talanti.feed.dto.CommentDto.class);
-    }
 
 
-    @org.springframework.transaction.annotation.Transactional
-    public void createPost(Long authorId, ge.dola.talanti.feed.dto.CreatePostRequest request) {
-        // 1. Create the Post
-        Long postId = dsl.insertInto(POSTS)
-                .set(POSTS.AUTHOR_ID, authorId)
-                .set(POSTS.CLUB_ID, request.clubId())
-                .set(POSTS.CONTENT, request.content())
-                .set(POSTS.IS_PUBLIC, true)
-                .set(POSTS.CREATED_AT, java.time.LocalDateTime.now())
-                .returningResult(POSTS.ID)
-                .fetchOneInto(Long.class);
 
-        // 2. Link the Uploaded Media
-        if (request.mediaIds() != null && !request.mediaIds().isEmpty()) {
-            var mediaInsert = dsl.insertInto(POST_MEDIA, POST_MEDIA.POST_ID, POST_MEDIA.MEDIA_ID, POST_MEDIA.DISPLAY_ORDER);
-            for (int i = 0; i < request.mediaIds().size(); i++) {
-                mediaInsert = mediaInsert.values(postId, request.mediaIds().get(i), i);
-            }
-            mediaInsert.execute();
-        }
-
-// Inside FeedRepository.java's createPost method:
-
-// 3. Link the Tagged Players (For their Match Feed)
-        if (request.taggedUserIds() != null && !request.taggedUserIds().isEmpty()) {
-            var tagsInsert = dsl.insertInto(POST_TAGS, POST_TAGS.POST_ID, POST_TAGS.USER_ID);
-            for (Long taggedUserId : request.taggedUserIds()) {
-                tagsInsert = tagsInsert.values(postId, taggedUserId);
-
-                // NEW: Fire the tag notification event!
-                applicationEventPublisher.publishEvent(new NotificationEvent(
-                        taggedUserId, "POST_TAG", "post", postId, "You were tagged", "Someone tagged you in a post", null
-                ));
-            }
-            tagsInsert.execute();
-        }
-
-// 4. NEW: Fan-out Club Announcement
-        if (request.clubId() != null) {
-            applicationEventPublisher.publishEvent(new NotificationEvent(
-                    null, "CLUB_ANNOUNCEMENT", "post", postId, "New Club Post", "A club you follow posted an update", request.clubId()
-            ));
-        }
-    }
 }

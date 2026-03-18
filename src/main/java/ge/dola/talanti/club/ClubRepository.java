@@ -64,10 +64,10 @@ public class ClubRepository {
                 .execute();
     }
 
-    public void unfollowClub(Long userId, Long clubId) {
+    public void unfollowClub(Long userId, Long clubId) { // Pass userId down from service!
         dsl.deleteFrom(CLUB_FOLLOWS)
-                .where(CLUB_FOLLOWS.USER_ID.eq(userId))
-                .and(CLUB_FOLLOWS.CLUB_ID.eq(clubId))
+                .where(CLUB_FOLLOWS.CLUB_ID.eq(clubId))
+                .and(CLUB_FOLLOWS.USER_ID.eq(userId)) // STRICT ENFORCEMENT
                 .execute();
     }
 

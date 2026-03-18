@@ -1,6 +1,7 @@
 package ge.dola.talanti.tryout;
 
 import ge.dola.talanti.security.CustomUserDetails;
+import ge.dola.talanti.security.util.SecurityUtils;
 import ge.dola.talanti.tryout.dto.TryoutApplicantDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,18 +29,20 @@ public class TryoutAdminController {
         return ResponseEntity.ok(service.getApplicationsForClub(clubId, user.getId()));
     }
 
-    // EXISTING: Update Status
-    @PutMapping("/applications/{id}/status")
+    // UPGRADED: Explicitly scopes the application update to the club domain
+    @PutMapping("/clubs/{clubId}/applications/{applicationId}/status")
     public ResponseEntity<?> updateStatus(
-            @PathVariable Long id,
-            @RequestParam String status,
-            @AuthenticationPrincipal CustomUserDetails user) {
-        if (user == null) return ResponseEntity.status(401).build();
+            @PathVariable Long clubId,
+            @PathVariable Long applicationId,
+            @RequestParam String status) {
 
         try {
-            service.updateApplicationStatus(id, status, user.getId());
+            // Passes the clubId to satisfy the @PreAuthorize proxy,
+            // the applicationId to target the row,
+            // and the adminId for the audit log.
+            service.updateApplicationStatus(clubId, applicationId, status, SecurityUtils.getCurrentUserId());
             return ResponseEntity.ok(Map.of("message", "Status updated successfully"));
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
     }

@@ -9,11 +9,11 @@ import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static ge.dola.talanti.jooq.Tables.*;
+import org.jooq.Records;
 
 @Repository
 public class MapRepository {
@@ -24,18 +24,18 @@ public class MapRepository {
         this.dsl = dsl;
     }
 
-    public void saveLocation(SaveLocationDto dto) {
-        dsl.insertInto(LOCATIONS)
-                .set(LOCATIONS.ENTITY_TYPE, dto.entityType())
-                .set(LOCATIONS.ENTITY_ID, dto.entityId())
+    public Long saveLocation(SaveLocationDto dto) {
+        // Relational Fix: No more polymorphic entity_type/entity_id.
+        // Just saves the location and returns the ID for the caller to link.
+        return dsl.insertInto(LOCATIONS)
                 .set(LOCATIONS.LATITUDE, BigDecimal.valueOf(dto.latitude()))
                 .set(LOCATIONS.LONGITUDE, BigDecimal.valueOf(dto.longitude()))
                 .set(LOCATIONS.ADDRESS_TEXT, dto.addressText())
                 .set(LOCATIONS.CREATED_AT, LocalDateTime.now())
-                .execute();
+                .returningResult(LOCATIONS.ID)
+                .fetchOneInto(Long.class);
     }
 
-    // --- SHARED HELPER FOR LOCATION STRINGS ---
     private Condition buildLocationCondition(Condition base, List<String> cities, List<String> countries) {
         Condition updated = base;
 
@@ -57,37 +57,64 @@ public class MapRepository {
         return updated;
     }
 
-    // --- CLUBS ---
+    // --- SAFE HAVERSINE IMPLEMENTATION ---
+    private Field<Double> getHaversineFormula(Double lat, Double lng) {
+        // STRICT ENFORCEMENT: Cast to float/double inside the SQL to satisfy Postgres Math requirements
+        return DSL.field(
+                "6371 * acos(" +
+                        "cos(radians({0})) * cos(radians({1}::float)) * " +
+                        "cos(radians({2}::float) - radians({3})) + " +
+                        "sin(radians({0})) * sin(radians({1}::float))" +
+                        ")",
+                Double.class,
+                lat,
+                LOCATIONS.LATITUDE,
+                LOCATIONS.LONGITUDE,
+                lng
+        );
+    }
+
+
     public List<MapMarkerDto> findNearbyClubs(Double lat, Double lng, Double radiusKm, List<String> cities, List<String> countries) {
-        Field<Double> distanceKm = getHaversineFormula(lat, lng);
-        Condition conditions = buildLocationCondition(distanceKm.le(radiusKm), cities, countries);
+        // 1. The raw math formula (Must be used for WHERE)
+        Field<Double> distanceMath = getHaversineFormula(lat, lng);
+
+        // 2. The alias (Must ONLY be used in SELECT)
+        Field<Double> distanceKm = distanceMath.as("distanceKm");
+
+        // STRICT ENFORCEMENT: Pass the raw math field into your condition builder
+        Condition conditions = buildLocationCondition(distanceMath.le(radiusKm), cities, countries);
 
         return dsl.select(
                         CLUBS.ID.as("entityId"),
                         DSL.inline("CLUB").as("entityType"),
                         CLUBS.NAME.as("title"),
                         CLUBS.TYPE.as("subtitle"),
-                        LOCATIONS.LATITUDE,
-                        LOCATIONS.LONGITUDE,
-                        distanceKm.as("distanceKm"),
-
+                        LOCATIONS.LATITUDE.cast(Double.class).as("latitude"), // STRICT CAST
+                        LOCATIONS.LONGITUDE.cast(Double.class).as("longitude"), // STRICT CAST
+                        distanceKm, // Use the alias here
                         DSL.field(DSL.selectCount().from(CLUB_MEMBERSHIPS).where(CLUB_MEMBERSHIPS.CLUB_ID.eq(CLUBS.ID))).as("members"),
                         DSL.field(DSL.selectCount().from(CLUB_FOLLOWS).where(CLUB_FOLLOWS.CLUB_ID.eq(CLUBS.ID))).as("followers"),
-                        CLUBS.IS_OFFICIAL.as("verified"),
+                        CLUBS.STATUS.eq("VERIFIED").as("verified"), // Adjusted to use your VERIFIED status logic
                         DSL.inline("").as("date"),
                         DSL.inline("").as("fee")
                 )
                 .from(CLUBS)
                 .join(LOCATIONS).on(CLUBS.LOCATION_ID.eq(LOCATIONS.ID))
                 .where(conditions)
-                .fetchInto(MapMarkerDto.class);
+                // Natively maps to the Record constructor without reflection
+                .fetch(Records.mapping(MapMarkerDto::new));
     }
 
-    // --- TRYOUTS ---
     public List<MapMarkerDto> findNearbyTryouts(Double lat, Double lng, Double radiusKm, List<String> gender, List<String> ageGroups, List<String> cities, List<String> countries) {
-        Field<Double> distanceKm = getHaversineFormula(lat, lng);
-        Condition conditions = buildLocationCondition(distanceKm.le(radiusKm), cities, countries);
-        conditions = conditions.and(TRYOUTS.TRYOUT_DATE.greaterOrEqual(LocalDateTime.now()));
+        // 1. The raw math formula (Must be used for WHERE)
+        Field<Double> distanceMath = getHaversineFormula(lat, lng);
+
+        // 2. The alias (Must ONLY be used in SELECT)
+        Field<Double> distanceKm = distanceMath.as("distanceKm");
+
+        // STRICT ENFORCEMENT: Pass the raw math field into your condition builder
+        Condition conditions = buildLocationCondition(distanceMath.le(radiusKm), cities, countries);
 
         if (ageGroups != null && !ageGroups.isEmpty()) {
             conditions = conditions.and(TRYOUTS.AGE_GROUP.in(ageGroups));
@@ -98,8 +125,8 @@ public class MapRepository {
                         DSL.inline("TRYOUT").as("entityType"),
                         TRYOUTS.TITLE.as("title"),
                         TRYOUTS.POSITION.as("subtitle"),
-                        LOCATIONS.LATITUDE,
-                        LOCATIONS.LONGITUDE,
+                        LOCATIONS.LATITUDE.cast(Double.class).as("latitude"),
+                        LOCATIONS.LONGITUDE.cast(Double.class).as("longitude"),
                         distanceKm.as("distanceKm"),
                         DSL.inline(0).as("members"),
                         DSL.inline(0).as("followers"),
@@ -110,53 +137,42 @@ public class MapRepository {
                 .from(TRYOUTS)
                 .join(LOCATIONS).on(TRYOUTS.LOCATION_ID.eq(LOCATIONS.ID))
                 .where(conditions)
-                .fetchInto(MapMarkerDto.class);
+                .fetch(Records.mapping(MapMarkerDto::new));
     }
 
-    // --- MATCHES ---
     public List<MapMarkerDto> findNearbyMatches(Double lat, Double lng, Double radiusKm, List<String> gender, List<String> ageGroups, List<String> cities, List<String> countries) {
-        Field<Double> distanceKm = getHaversineFormula(lat, lng);
-        Condition conditions = buildLocationCondition(distanceKm.le(radiusKm), cities, countries);
-        conditions = conditions.and(MATCH_REQUESTS.DESIRED_DATE.greaterOrEqual(LocalDate.now().atStartOfDay()));
+        // 1. The raw math formula (Must be used for WHERE)
+        Field<Double> distanceMath = getHaversineFormula(lat, lng);
 
-        if (gender != null && !gender.isEmpty()) {
-            // Note: Gender strings match "BOYS", "GIRLS" from frontend, map to "MALE", "FEMALE" if your DB requires!
-            // Assuming DB matches the array values directly for now.
-            conditions = conditions.and(SQUADS.GENDER.in(gender));
-        }
-        if (ageGroups != null && !ageGroups.isEmpty()) {
-            conditions = conditions.and(SQUADS.CATEGORY.in(ageGroups));
-        }
+        // 2. The alias (Must ONLY be used in SELECT)
+        Field<Double> distanceKm = distanceMath.as("distanceKm");
+
+        // STRICT ENFORCEMENT: Pass the raw math field into your condition builder
+        Condition conditions = buildLocationCondition(distanceMath.le(radiusKm), cities, countries);
+        conditions = conditions.and(MATCHES.SCHEDULED_DATE.greaterOrEqual(LocalDateTime.now()));
+        conditions = conditions.and(MATCHES.STATUS.eq("OPEN"));
 
         return dsl.select(
-                        MATCH_REQUESTS.ID.as("entityId"),
-                        DSL.inline("MATCH_REQUEST").as("entityType"),
-                        DSL.concat(CLUBS.NAME, DSL.inline(" - "), SQUADS.NAME).as("title"),
-                        MATCH_REQUESTS.STATUS.as("subtitle"),
-                        LOCATIONS.LATITUDE,
-                        LOCATIONS.LONGITUDE,
+                        MATCHES.ID.as("entityId"),
+                        DSL.inline("MATCH").as("entityType"),
+                        CLUBS.NAME.as("title"),
+                        MATCHES.STATUS.as("subtitle"),
+                        LOCATIONS.LATITUDE.cast(Double.class).as("latitude"),
+                        LOCATIONS.LONGITUDE.cast(Double.class).as("longitude"),
                         distanceKm.as("distanceKm"),
                         DSL.inline(0).as("members"),
                         DSL.inline(0).as("followers"),
                         DSL.inline(false).as("verified"),
-                        DSL.cast(MATCH_REQUESTS.DESIRED_DATE, String.class).as("date"),
+                        DSL.cast(MATCHES.SCHEDULED_DATE, String.class).as("date"),
                         DSL.inline("Free").as("fee")
                 )
-                .from(MATCH_REQUESTS)
-                .join(CLUBS).on(MATCH_REQUESTS.CLUB_ID.eq(CLUBS.ID))
-                .join(SQUADS).on(MATCH_REQUESTS.SQUAD_ID.eq(SQUADS.ID))
-                .join(LOCATIONS).on(MATCH_REQUESTS.LOCATION_ID.eq(LOCATIONS.ID))
+                .from(MATCHES)
+                .join(CLUBS).on(MATCHES.HOME_CLUB_ID.eq(CLUBS.ID))
+                .join(LOCATIONS).on(LOCATIONS.ID.eq(DSL.coalesce(MATCHES.LOCATION_ID, CLUBS.LOCATION_ID)))
                 .where(conditions)
-                .fetchInto(MapMarkerDto.class);
+                .fetch(Records.mapping(MapMarkerDto::new));
     }
 
-    private Field<Double> getHaversineFormula(Double lat, Double lng) {
-        return DSL.field(
-                "6371 * acos(cos(radians({0})) * cos(radians(" + LOCATIONS.LATITUDE.getName() + ")) * " +
-                        "cos(radians(" + LOCATIONS.LONGITUDE.getName() + ") - radians({1})) + " +
-                        "sin(radians({0})) * sin(radians(" + LOCATIONS.LATITUDE.getName() + ")))",
-                Double.class,
-                lat, lng
-        );
-    }
+
+
 }

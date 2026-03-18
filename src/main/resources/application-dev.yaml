@@ -4,17 +4,7 @@ spring:
       enabled: true
       file: ./compose.yaml
 
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
-            scope:
-              - email
-              - profile
-  # --- LOCAL DEVELOPMENT OVERRIDES ---
+# --- LOCAL DEVELOPMENT OVERRIDES ---
 jwt:
   secret: "TXlTdXBlclNlY3JldEtleVRoYXRJc0F0TGVhc3QzMkJ5dGVzTG9uZw==" # Hardcoded 32-byte Base64 key
   cookie:

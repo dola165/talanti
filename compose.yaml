@@ -11,16 +11,28 @@ services:
     volumes:
       - './postgres-data:/var/lib/postgresql/data'
 
-  talanti-backend:
-    image: 'dola164/talanti:latest'
-    container_name: talanti-app
+#  talanti-backend:
+#    image: 'dola164/talanti:latest'
+#    container_name: talanti-app
+#    ports:
+#      - '8080:8080'
+#    depends_on:
+#      - postgres
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/talanti
+#      - SPRING_DATASOURCE_USERNAME=postgres
+#      - SPRING_DATASOURCE_PASSWORD=dola
+#      # If you use Spring AI, add your key here:
+#      # - SPRING_AI_OPENAI_API_KEY=your_key_here
+
+  redis:
+    image: redis:7-alpine
+    container_name: talanti-redis
     ports:
-      - '8080:8080'
-    depends_on:
-      - postgres
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/talanti
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=dola
-      # If you use Spring AI, add your key here:
-      # - SPRING_AI_OPENAI_API_KEY=your_key_here
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

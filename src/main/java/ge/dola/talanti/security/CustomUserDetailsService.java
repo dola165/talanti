@@ -12,8 +12,8 @@ import java.util.List;
 
 import static ge.dola.talanti.jooq.Tables.USERS;
 import static ge.dola.talanti.jooq.Tables.USER_PROFILES;
-import static ge.dola.talanti.util.LogSafe.safe;
-import static ge.dola.talanti.util.LogSafe.safeEmail;
+import static ge.dola.talanti.security.util.LogSafe.safe;
+import static ge.dola.talanti.security.util.LogSafe.safeEmail;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
@@ -48,8 +48,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     // Centralized helper to build the UserDetails object safely
     private CustomUserDetails buildCustomUserDetails(UsersRecord userRecord) {
         // Map smallint (0 or 1) to Spring Security Roles
-        String roleStr = userRecord.getSystemRole() == 1 ? "ROLE_ADMIN" : "ROLE_USER";
-
+        String roleStr = "ROLE_" + userRecord.getUserType().toUpperCase();
         // Try to fetch their real full name from the profiles table
         String fullName = dsl.select(USER_PROFILES.FULL_NAME)
                 .from(USER_PROFILES)

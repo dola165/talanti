@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/map")
@@ -18,9 +19,10 @@ public class MapController {
     }
 
     @PostMapping("/location")
-    public ResponseEntity<Void> addLocation(@RequestBody SaveLocationDto dto) {
-        mapService.addLocation(dto);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, Long>> addLocation(@RequestBody SaveLocationDto dto) {
+        // STRICT ENFORCEMENT: Return the ID so the frontend can link it to Clubs/Matches!
+        Long locationId = mapService.addLocation(dto);
+        return ResponseEntity.ok(Map.of("locationId", locationId));
     }
 
     @GetMapping("/nearby")

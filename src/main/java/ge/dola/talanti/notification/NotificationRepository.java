@@ -1,11 +1,13 @@
 package ge.dola.talanti.notification;
 
+import ge.dola.talanti.jooq.tables.records.NotificationsRecord;
 import lombok.RequiredArgsConstructor;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static ge.dola.talanti.jooq.Tables.NOTIFICATIONS;
 import static ge.dola.talanti.jooq.tables.ClubFollows.CLUB_FOLLOWS;
@@ -50,6 +52,22 @@ public class NotificationRepository {
                                 .from(CLUB_FOLLOWS)
                                 .where(CLUB_FOLLOWS.CLUB_ID.eq(clubId))
                 )
+                .execute();
+    }
+
+    // Add to existing NotificationRepository
+    public List<NotificationsRecord> getUserNotifications(Long userId) {
+        return dsl.selectFrom(NOTIFICATIONS)
+                .where(NOTIFICATIONS.USER_ID.eq(userId))
+                .orderBy(NOTIFICATIONS.CREATED_AT.desc())
+                .limit(20)
+                .fetch();
+    }
+
+    public void markAsRead(Long id) {
+        dsl.update(NOTIFICATIONS)
+                .set(NOTIFICATIONS.IS_READ, true)
+                .where(NOTIFICATIONS.ID.eq(id))
                 .execute();
     }
 }

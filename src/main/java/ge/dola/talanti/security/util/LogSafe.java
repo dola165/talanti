@@ -1,4 +1,4 @@
-package ge.dola.talanti.util;
+package ge.dola.talanti.security.util;
 
 public final class LogSafe {
     private LogSafe() {}

@@ -3,25 +3,37 @@ package ge.dola.talanti.club.mapper;
 import ge.dola.talanti.club.dto.ClubDto;
 import ge.dola.talanti.club.dto.CreateClubDto;
 import ge.dola.talanti.jooq.tables.records.ClubsRecord;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
+import org.springframework.stereotype.Component;
 
-@Mapper(componentModel = "spring")
-public interface ClubMapper {
+@Component
+public class ClubMapper {
 
-    // Map JOOQ record to Output DTO
-    ClubDto toDto(ClubsRecord record);
+    // Reads from DB: Translate String "VERIFIED" to boolean true
+    public ClubDto toDto(ClubsRecord record) {
+        if (record == null) return null;
 
-    // Map incoming Create DTO to JOOQ record (ignoring DB-generated fields)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdBy", ignore = true) // Handled in Service layer
-    @Mapping(target = "createdAt", ignore = true)
-    ClubsRecord toRecord(CreateClubDto dto);
+        return new ClubDto(
+                record.getId(),
+                record.getName(),
+                record.getDescription(),
+                record.getLocationId(),
+                record.getType(),
+                "VERIFIED".equals(record.getStatus()),
+                record.getCreatedAt()
+        );
+    }
 
-    // Update existing record with new data
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    void updateRecordFromDto(CreateClubDto dto, @MappingTarget ClubsRecord record);
+    // Writes to DB: Translate boolean true to String "VERIFIED"
+    public ClubsRecord toRecord(CreateClubDto dto) {
+        if (dto == null) return null;
+
+        ClubsRecord record = new ClubsRecord();
+        record.setName(dto.name());
+        record.setDescription(dto.description());
+        record.setLocationId(dto.locationId());
+        record.setType(dto.type());
+        record.setStatus(dto.isOfficial() != null && dto.isOfficial() ? "VERIFIED" : "UNVERIFIED");
+
+        return record;
+    }
 }

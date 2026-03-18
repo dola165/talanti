@@ -4,11 +4,13 @@ spring:
   application:
     name: talanti
 
+
   # --- MULTITHREADING (Requires Java 21+) ---
   threads:
     virtual:
       enabled: true
 
+  # --- DATABASE & MIGRATIONS ---
   datasource:
     url: ${DB_URL:}
     username: ${DB_USERNAME:}
@@ -23,35 +25,44 @@ spring:
   jooq:
     sql-dialect: POSTGRES
 
+  # --- REDIS CACHING (Optional for MVP) ---
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # --- WEB & FILE UPLOADS ---
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
-
   web:
     resources:
       static-locations: classpath:/static/,file:uploads/
 
+# --- LOGGING ---
 logging:
   level:
     org.jooq.tools.LoggerListener: DEBUG
     org.springframework.web.socket: INFO
 
+# --- THIRD PARTY INTEGRATIONS ---
 app:
-  mapbox:
-    token: ${MAPBOX_TOKEN:}
-
-# --- PRODUCTION JWT DEFAULTS ---
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
 # --- JWT CONFIGURATION ---
 jwt:
   issuer: "talanti"
   audience: "talanti-web"
-  # Syntax: ${ENV_VAR:default_value}
-  # If JWT_SECRET is missing, it automatically uses this valid 32-byte Base64 key!
   secret: ${JWT_SECRET:TXlTdXBlclNlY3JldEtleVRoYXRJc0F0TGVhc3QzMkJ5dGVzTG9uZw==}
   access-token-ttl: "PT15M"
   refresh-token-ttl: "P30D"
   cookie:
     refresh-name: "tl_refresh"
-    secure: false      # Set to false so cookies work on localhost HTTP
+    secure: false
     same-site: "Lax"

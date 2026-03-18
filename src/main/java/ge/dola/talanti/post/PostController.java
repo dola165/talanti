@@ -1,10 +1,14 @@
 package ge.dola.talanti.post;
 
+import ge.dola.talanti.feed.FeedService;
+import ge.dola.talanti.feed.dto.CommentDto;
+import ge.dola.talanti.feed.dto.CommentRequest;
+import ge.dola.talanti.feed.dto.FeedResponseDto;
 import ge.dola.talanti.post.dto.CreatePostDto;
-import ge.dola.talanti.security.CustomUserDetails;
+import ge.dola.talanti.security.util.SecurityUtils;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,78 +16,76 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/posts")
+@RequiredArgsConstructor
 public class PostController {
 
     private final PostService postService;
+    private final FeedService feedService;
 
-    public PostController(PostService postService) {
-        this.postService = postService;
+    /**
+     * Safely resolves the current user ID for public endpoints.
+     * Returns -1L if the user is unauthenticated so 'isLikedByMe' evaluates safely.
+     */
+    private Long resolveCurrentUserId() {
+        return SecurityUtils.getCurrentUser().map(u -> u.getUserId()).orElse(-1L);
     }
+
+    // --- READS (FeedService) ---
+
+    @GetMapping("/feed")
+    public ResponseEntity<FeedResponseDto> getGlobalFeed(
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+        // STRICT ENFORCEMENT: Calls getFeed() with the resolved context
+        return ResponseEntity.ok(feedService.getFeed(resolveCurrentUserId(), cursor, limit));
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<FeedResponseDto> getUserFeed(
+            @PathVariable Long userId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+        // STRICT ENFORCEMENT: Pass resolved context
+        return ResponseEntity.ok(feedService.getUserFeed(userId, resolveCurrentUserId(), cursor, limit));
+    }
+
+    @GetMapping("/club/{clubId}")
+    public ResponseEntity<FeedResponseDto> getClubFeed(
+            @PathVariable Long clubId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int limit) {
+        // STRICT ENFORCEMENT: Pass resolved context
+        return ResponseEntity.ok(feedService.getClubFeed(clubId, resolveCurrentUserId(), cursor, limit));
+    }
+
+    @GetMapping("/{postId}/comments")
+    public ResponseEntity<List<CommentDto>> getComments(@PathVariable Long postId) {
+        return ResponseEntity.ok(feedService.getComments(postId));
+    }
+
+    // --- WRITES (PostService) ---
 
     @PostMapping
-    public ResponseEntity<?> createPost(
-            @Valid @RequestBody CreatePostDto dto,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
-
-        if (currentUser == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
-        }
-
-        try {
-            var savedPost = postService.createPost(currentUser.getId(), dto);
-
-            // Return success with the new post ID.
-            // The React dev can either append this locally or just re-fetch the feed.
-            return ResponseEntity.ok(Map.of(
-                    "message", "Post created successfully",
-                    "postId", savedPost.getId()
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-    /**
-     * React will call: POST /api/posts/{id}/like
-     */
-    @PostMapping("/{id}/like")
-    public ResponseEntity<?> toggleLike(
-            @PathVariable Long id,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
-
-        if (currentUser == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
-        }
-
-        try {
-            boolean isNowLiked = postService.toggleLike(id, currentUser.getId());
-
-            // Returns { "isLiked": true } so the frontend can immediately turn the heart red
-            return ResponseEntity.ok(Map.of("isLiked", isNowLiked));
-
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<?> createPost(@Valid @RequestBody CreatePostDto dto) {
+        var savedPost = postService.createPost(dto);
+        return ResponseEntity.ok(Map.of("message", "Post created", "postId", savedPost.getId()));
     }
 
-    // GET /api/posts/{id}/comments
-    @GetMapping("/{id}/comments")
-    public ResponseEntity<?> getComments(@PathVariable Long id) {
-        // We will build the proper JOOQ repository fetch for this next,
-        // but this stops the 403 error immediately!
-        return ResponseEntity.ok(List.of());
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<?> deletePost(@PathVariable Long postId) {
+        postService.deletePost(postId);
+        return ResponseEntity.ok(Map.of("message", "Post deleted successfully"));
     }
 
-    // POST /api/posts/{id}/comments
-    @PostMapping("/{id}/comments")
-    public ResponseEntity<?> addComment(
-            @PathVariable Long id,
-            @RequestBody Map<String, String> payload,
-            @AuthenticationPrincipal CustomUserDetails user) {
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<?> toggleLike(@PathVariable Long postId) {
+        boolean isNowLiked = postService.toggleLike(postId);
+        return ResponseEntity.ok(Map.of("isLiked", isNowLiked));
+    }
 
-        Long userId = user != null ? user.getId() : 1L; // MVP Bypass
-        String content = payload.get("content");
-
-        // Return a mock success so React updates locally
-        return ResponseEntity.ok(Map.of("commentId", System.currentTimeMillis()));
+    @PostMapping("/{postId}/comments")
+    public ResponseEntity<CommentDto> addComment(@PathVariable Long postId, @RequestBody CommentRequest request) {
+        CommentDto newComment = postService.addComment(postId, request.content());
+        return ResponseEntity.ok(newComment);
     }
 }

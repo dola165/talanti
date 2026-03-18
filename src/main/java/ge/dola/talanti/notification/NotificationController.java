@@ -1,39 +1,28 @@
 package ge.dola.talanti.notification;
 
 import ge.dola.talanti.jooq.tables.records.NotificationsRecord;
+import ge.dola.talanti.security.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.jooq.DSLContext;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
-import static ge.dola.talanti.jooq.Tables.NOTIFICATIONS;
 
 @RestController
-@RequestMapping("/notifications")
+@RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
 
-    private final DSLContext dsl;
+    private final NotificationService notificationService;
 
     @GetMapping
-    public List<NotificationsRecord> getMyNotifications() {
-        // Hardcoded for 'react_dev' for your current dev environment
-        Long myUserId = dsl.select(ge.dola.talanti.jooq.Tables.USERS.ID)
-                .from(ge.dola.talanti.jooq.Tables.USERS)
-                .where(ge.dola.talanti.jooq.Tables.USERS.USERNAME.eq("react_dev"))
-                .fetchOneInto(Long.class);
-
-        return dsl.selectFrom(NOTIFICATIONS)
-                .where(NOTIFICATIONS.USER_ID.eq(myUserId))
-                .orderBy(NOTIFICATIONS.CREATED_AT.desc())
-                .limit(20)
-                .fetch();
+    public ResponseEntity<List<NotificationsRecord>> getMyNotifications() {
+        return ResponseEntity.ok(notificationService.getMyNotifications(SecurityUtils.getCurrentUserId()));
     }
 
     @PatchMapping("/{id}/read")
-    public void markAsRead(@PathVariable Long id) {
-        dsl.update(NOTIFICATIONS)
-                .set(NOTIFICATIONS.IS_READ, true)
-                .where(NOTIFICATIONS.ID.eq(id))
-                .execute();
+    public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
+        notificationService.markAsRead(id, SecurityUtils.getCurrentUserId());
+        return ResponseEntity.ok().build();
     }
 }

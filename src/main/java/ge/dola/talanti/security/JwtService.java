@@ -8,6 +8,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.jooq.DSLContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import java.time.Duration;
@@ -39,6 +40,7 @@ public class JwtService {
 
     public record TokenPair(String accessToken, Instant accessExpiresAt, String refreshToken, Instant refreshExpiresAt) {}
 
+    @Transactional
     public TokenPair generateTokens(Long userId, String emailOrUsername, List<String> authorities) {
         Instant now = Instant.now();
 

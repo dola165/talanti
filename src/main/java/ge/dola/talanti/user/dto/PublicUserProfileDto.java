@@ -1,10 +1,12 @@
 package ge.dola.talanti.user.dto;
 
+import ge.dola.talanti.user.UserType;
+
 public record PublicUserProfileDto(
         Long id,
         String username,
         String fullName,
-        String role,
+        UserType role,
         String position,
         String preferredFoot,
         String bio,

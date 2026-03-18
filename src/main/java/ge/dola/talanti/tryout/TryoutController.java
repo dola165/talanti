@@ -1,6 +1,5 @@
 package ge.dola.talanti.tryout;
 
-import ge.dola.talanti.tryout.dto.TryoutMapDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,10 +13,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TryoutController {
 
-    private final TryoutRepository tryoutRepository;
+    // 🛡️ ONLY the Service is injected
+    private final TryoutService tryoutService;
 
-    @GetMapping("/map")
-    public ResponseEntity<List<TryoutMapDto>> getMapTryouts() {
-        return ResponseEntity.ok(tryoutRepository.getUpcomingTryoutsForMap());
-    }
+
 }

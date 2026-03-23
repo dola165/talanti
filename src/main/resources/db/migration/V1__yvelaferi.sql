@@ -448,3 +448,307 @@ CREATE INDEX IF NOT EXISTS idx_clubs_location_id ON clubs(location_id);
 CREATE INDEX IF NOT EXISTS idx_tryouts_location_date ON tryouts(location_id, tryout_date);
 CREATE INDEX IF NOT EXISTS idx_matches_match_type_status_date ON matches(match_type, status, scheduled_date);
 CREATE INDEX IF NOT EXISTS idx_matches_location_id ON matches(location_id);
+
+CREATE INDEX IF NOT EXISTS idx_posts_public_recent
+    ON posts(is_public, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_posts_club_recent
+    ON posts(club_id, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_posts_author_recent
+    ON posts(author_id, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_comments_post_created
+    ON comments(post_id, created_at, id);
+
+CREATE INDEX IF NOT EXISTS idx_squads_club_sort
+    ON squads(club_id, category, name, id);
+
+CREATE INDEX IF NOT EXISTS idx_club_opportunities_club_status_created
+    ON club_opportunities(club_id, status, created_at DESC, id DESC);
+
+ALTER TABLE clubs
+    ADD COLUMN IF NOT EXISTS facebook_messenger_url VARCHAR(255);
+
+ALTER TABLE clubs
+    ADD COLUMN IF NOT EXISTS preferred_contact_method VARCHAR(50);
+
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'clubs_preferred_contact_method_check'
+        ) THEN
+            ALTER TABLE clubs
+                ADD CONSTRAINT clubs_preferred_contact_method_check
+                    CHECK (
+                        preferred_contact_method IS NULL
+                            OR preferred_contact_method IN ('WHATSAPP', 'FACEBOOK_MESSENGER')
+                        );
+        END IF;
+    END
+$$;
+
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'clubs_name_quality_check'
+        ) THEN
+            ALTER TABLE clubs
+                ADD CONSTRAINT clubs_name_quality_check
+                    CHECK (
+                        char_length(btrim(name)) BETWEEN 3 AND 120
+                            AND name ~ '[[:alnum:]]'
+                        );
+        END IF;
+    END
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_clubs_name_normalized
+    ON clubs ((lower(regexp_replace(btrim(name), '\s+', ' ', 'g'))));
+
+CREATE INDEX IF NOT EXISTS idx_club_memberships_user_role
+    ON club_memberships (user_id, role, joined_at);
+
+CREATE TABLE IF NOT EXISTS club_membership_invites (
+                                                       id BIGSERIAL PRIMARY KEY,
+                                                       club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+                                                       invitee_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                                                       role VARCHAR(50) NOT NULL,
+                                                       status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                                                       invited_by BIGINT NOT NULL REFERENCES users(id),
+                                                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                       responded_at TIMESTAMP,
+                                                       CHECK (role IN ('CLUB_ADMIN', 'COACH', 'AGENT', 'PLAYER')),
+                                                       CHECK (status IN ('PENDING', 'ACCEPTED', 'DECLINED', 'CANCELLED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_club_membership_invites_pending
+    ON club_membership_invites (club_id, invitee_user_id)
+    WHERE status = 'PENDING';
+
+CREATE INDEX IF NOT EXISTS idx_club_membership_invites_club_status_created
+    ON club_membership_invites (club_id, status, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_club_membership_invites_user_status_created
+    ON club_membership_invites (invitee_user_id, status, created_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS club_trust_links (
+                                                trusted_club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+                                                trusting_club_id BIGINT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+                                                created_by BIGINT NOT NULL REFERENCES users(id),
+                                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                PRIMARY KEY (trusted_club_id, trusting_club_id),
+                                                CHECK (trusted_club_id <> trusting_club_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_club_trust_links_trusted_created
+    ON club_trust_links (trusted_club_id, created_at DESC, trusting_club_id);
+
+ALTER TABLE notifications
+    ADD COLUMN IF NOT EXISTS link_path VARCHAR(255);
+
+UPDATE notifications
+SET title = 'Notification'
+WHERE title IS NULL
+   OR btrim(title) = '';
+
+UPDATE notifications
+SET body = 'Open the app to view the latest update.'
+WHERE body IS NULL
+   OR btrim(body) = '';
+
+UPDATE notifications
+SET type = upper(btrim(type))
+WHERE type IS NOT NULL;
+
+UPDATE notifications
+SET entity_type = lower(btrim(entity_type))
+WHERE entity_type IS NOT NULL;
+
+UPDATE notifications
+SET is_read = FALSE
+WHERE is_read IS NULL;
+
+UPDATE notifications
+SET created_at = CURRENT_TIMESTAMP
+WHERE created_at IS NULL;
+
+ALTER TABLE notifications
+    ALTER COLUMN title SET NOT NULL;
+
+ALTER TABLE notifications
+    ALTER COLUMN body SET NOT NULL;
+
+ALTER TABLE notifications
+    ALTER COLUMN is_read SET NOT NULL;
+
+ALTER TABLE notifications
+    ALTER COLUMN is_read SET DEFAULT FALSE;
+
+ALTER TABLE notifications
+    ALTER COLUMN created_at SET NOT NULL;
+
+ALTER TABLE notifications
+    ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;
+
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'notifications_type_format_check'
+        ) THEN
+            ALTER TABLE notifications
+                ADD CONSTRAINT notifications_type_format_check
+                    CHECK (char_length(btrim(type)) > 0 AND type = upper(type));
+        END IF;
+    END
+$$;
+
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'notifications_entity_type_format_check'
+        ) THEN
+            ALTER TABLE notifications
+                ADD CONSTRAINT notifications_entity_type_format_check
+                    CHECK (
+                        entity_type IS NULL
+                            OR (char_length(btrim(entity_type)) > 0 AND entity_type = lower(entity_type))
+                        );
+        END IF;
+    END
+$$;
+
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'notifications_link_path_check'
+        ) THEN
+            ALTER TABLE notifications
+                ADD CONSTRAINT notifications_link_path_check
+                    CHECK (link_path IS NULL OR link_path LIKE '/%');
+        END IF;
+    END
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+    ON notifications (user_id, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
+    ON notifications (user_id, created_at DESC, id DESC)
+    WHERE is_read = FALSE;
+
+
+ALTER TABLE notifications
+    ADD COLUMN IF NOT EXISTS scope VARCHAR(20);
+
+ALTER TABLE notifications
+    ADD COLUMN IF NOT EXISTS club_id BIGINT REFERENCES clubs(id) ON DELETE SET NULL;
+
+UPDATE notifications n
+SET club_id = m.away_club_id
+FROM matches m
+WHERE n.club_id IS NULL
+  AND n.type = 'CLUB_CHALLENGE_RECEIVED'
+  AND n.entity_type = 'match'
+  AND n.entity_id = m.id;
+
+UPDATE notifications n
+SET club_id = t.club_id
+FROM tryout_applications ta
+         JOIN tryouts t ON t.id = ta.tryout_id
+WHERE n.club_id IS NULL
+  AND n.entity_type = 'tryout_application'
+  AND n.entity_id = ta.id;
+
+UPDATE notifications n
+SET club_id = cmi.club_id
+FROM club_membership_invites cmi
+WHERE n.club_id IS NULL
+  AND n.entity_type = 'club_membership_invite'
+  AND n.entity_id = cmi.id;
+
+UPDATE notifications
+SET club_id = entity_id
+WHERE club_id IS NULL
+  AND entity_type = 'club_membership';
+
+UPDATE notifications n
+SET club_id = s.club_id
+FROM squads s
+WHERE n.club_id IS NULL
+  AND n.entity_type = 'squad'
+  AND n.entity_id = s.id;
+
+UPDATE notifications n
+SET club_id = p.club_id
+FROM posts p
+WHERE n.club_id IS NULL
+  AND n.entity_type = 'post'
+  AND n.entity_id = p.id
+  AND p.club_id IS NOT NULL;
+
+UPDATE notifications
+SET scope = 'CLUB'
+WHERE scope IS NULL
+  AND type IN ('CLUB_CHALLENGE_RECEIVED', 'TRYOUT_APPLICATION_RECEIVED')
+  AND club_id IS NOT NULL;
+
+UPDATE notifications
+SET scope = 'PERSONAL'
+WHERE scope IS NULL
+   OR btrim(scope) = '';
+
+ALTER TABLE notifications
+    ALTER COLUMN scope SET NOT NULL;
+
+ALTER TABLE notifications
+    ALTER COLUMN scope SET DEFAULT 'PERSONAL';
+
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'notifications_scope_check'
+        ) THEN
+            ALTER TABLE notifications
+                ADD CONSTRAINT notifications_scope_check
+                    CHECK (scope IN ('PERSONAL', 'CLUB'));
+        END IF;
+    END
+$$;
+
+DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'notifications_club_scope_check'
+        ) THEN
+            ALTER TABLE notifications
+                ADD CONSTRAINT notifications_club_scope_check
+                    CHECK (scope <> 'CLUB' OR club_id IS NOT NULL);
+        END IF;
+    END
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_scope_created
+    ON notifications (user_id, scope, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_scope_unread_created
+    ON notifications (user_id, scope, created_at DESC, id DESC)
+    WHERE is_read = FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_club_created
+    ON notifications (user_id, club_id, created_at DESC, id DESC)
+    WHERE club_id IS NOT NULL;

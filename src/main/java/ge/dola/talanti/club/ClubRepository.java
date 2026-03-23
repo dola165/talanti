@@ -4,11 +4,13 @@ import ge.dola.talanti.club.dto.ClubUpdateDto;
 import ge.dola.talanti.jooq.tables.records.ClubsRecord;
 import org.jooq.DSLContext;
 import org.jooq.Field;
+import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -35,13 +37,32 @@ public class ClubRepository {
         return dsl.selectFrom(CLUBS).fetch();
     }
 
-    public ClubsRecord save(ClubsRecord club) {
-        // JOOQ records can execute themselves if attached,
-        // but explicit DSL execution is often cleaner.
+    public ClubsRecord save(ClubsRecord club,
+                            String contactEmail,
+                            String whatsappNumber,
+                            String facebookMessengerUrl,
+                            String preferredCommunicationMethod) {
         return dsl.insertInto(CLUBS)
                 .set(club)
+                .set(CLUBS.CONTACT_EMAIL, contactEmail)
+                .set(CLUBS.WHATSAPP_NUMBER, whatsappNumber)
+                .set(ClubDynamicTables.CLUBS_FACEBOOK_MESSENGER_URL, facebookMessengerUrl)
+                .set(ClubDynamicTables.CLUBS_PREFERRED_CONTACT_METHOD, preferredCommunicationMethod)
                 .returning()
                 .fetchOne();
+    }
+
+    public boolean existsByNormalizedName(String clubName) {
+        String normalizedName = normalizeClubName(clubName);
+        if (normalizedName == null) {
+            return false;
+        }
+
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(CLUBS)
+                        .where(normalizedNameField().eq(normalizedName))
+        );
     }
 
     public boolean isUserFollowingClub(Long userId, Long clubId) {
@@ -72,10 +93,8 @@ public class ClubRepository {
     }
 
     public void updateClubImages(Long clubId, ClubUpdateDto dto) {
-
         Map<Field<?>, Object> updates = new HashMap<>();
 
-// Dynamically build the map of fields we want to update
         if (dto.logoUrl() != null) {
             updates.put(CLUBS.LOGO_URL, dto.logoUrl());
         }
@@ -93,4 +112,20 @@ public class ClubRepository {
         }
     }
 
+    private static Field<String> normalizedNameField() {
+        return DSL.field(
+                "lower(regexp_replace(btrim({0}), '\\s+', ' ', 'g'))",
+                String.class,
+                CLUBS.NAME
+        );
+    }
+
+    private static String normalizeClubName(String clubName) {
+        if (clubName == null || clubName.isBlank()) {
+            return null;
+        }
+        return clubName.trim()
+                .replaceAll("\\s+", " ")
+                .toLowerCase(Locale.ROOT);
+    }
 }

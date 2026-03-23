@@ -5,10 +5,11 @@ import ge.dola.talanti.club.dto.CreateClubDto;
 import ge.dola.talanti.jooq.tables.records.ClubsRecord;
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
+
 @Component
 public class ClubMapper {
 
-    // Reads from DB: Translate String "VERIFIED" to boolean true
     public ClubDto toDto(ClubsRecord record) {
         if (record == null) return null;
 
@@ -23,16 +24,14 @@ public class ClubMapper {
         );
     }
 
-    // Writes to DB: Translate boolean true to String "VERIFIED"
     public ClubsRecord toRecord(CreateClubDto dto) {
         if (dto == null) return null;
 
         ClubsRecord record = new ClubsRecord();
-        record.setName(dto.name());
-        record.setDescription(dto.description());
+        record.setName(dto.name().trim().replaceAll("\\s+", " "));
+        record.setDescription(dto.description() == null || dto.description().isBlank() ? null : dto.description().trim());
         record.setLocationId(dto.locationId());
-        record.setType(dto.type());
-        record.setStatus(dto.isOfficial() != null && dto.isOfficial() ? "VERIFIED" : "UNVERIFIED");
+        record.setType(dto.type().trim().toUpperCase(Locale.ROOT));
 
         return record;
     }

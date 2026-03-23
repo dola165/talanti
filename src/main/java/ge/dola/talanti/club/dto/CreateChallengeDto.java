@@ -1,16 +1,28 @@
 package ge.dola.talanti.club.dto;
 
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
 import java.time.LocalDateTime;
 
 public record CreateChallengeDto(
-        @NotNull
         Long targetClubId,
 
-        Long challengingSquadId, // Null if they are just doing a generic U15 challenge
-        Long targetSquadId,      // Null if challenging the whole club generically
+        Long challengingSquadId,
+        Long targetSquadId,
 
-        String matchType,        // 'FRIENDLY', 'COMPETITIVE'
+        @Pattern(
+                regexp = "(?i)FRIENDLY|COMPETITIVE",
+                message = "Match type must be FRIENDLY or COMPETITIVE"
+        )
+        String matchType,
+
+        @NotNull(message = "A proposed date is required")
+        @Future(message = "Proposed date must be in the future")
         LocalDateTime proposedDate,
-        String message           // "Hey, our U15 boys want to play your U15 boys"
+
+        @Size(max = 500, message = "Message cannot exceed 500 characters")
+        String message
 ) {}

@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static ge.dola.talanti.jooq.Tables.*;
@@ -33,6 +34,7 @@ import static ge.dola.talanti.jooq.Tables.*;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+    private static final Set<UserType> SELF_SELECTABLE_SIGNUP_ROLES = Set.of(UserType.PLAYER, UserType.FAN);
 
     private final DSLContext dsl;
     private final UserRepository userRepository;
@@ -50,19 +52,19 @@ public class AuthService {
         }
 
         String baseUsername = dto.email().split("@")[0] + "_" + UUID.randomUUID().toString().substring(0, 5);
+        UserType initialRole = resolveInitialRole(dto.role());
 
         Long userId = dsl.insertInto(USERS)
                 .set(USERS.USERNAME, baseUsername)
                 .set(USERS.EMAIL, dto.email())
                 .set(USERS.PASSWORD_HASH, passwordEncoder.encode(dto.password()))
-                .set(USERS.USER_TYPE, UserType.FAN.name()) // STRICT ENFORCEMENT: Mapped via Enum
+                .set(USERS.USER_TYPE, initialRole.name())
                 .set(USERS.CREATED_AT, LocalDateTime.now())
                 .returningResult(USERS.ID)
                 .fetchOneInto(Long.class);
 
         dsl.insertInto(USER_PROFILES)
                 .set(USER_PROFILES.USER_ID, userId)
-                .set(USER_PROFILES.FULL_NAME, "New User")
                 .execute();
     }
 
@@ -110,7 +112,7 @@ public class AuthService {
         String refreshToken = extractRefreshToken(request);
         if (refreshToken != null) {
             try {
-                Jws<Claims> jws = jwtService.parse(refreshToken);
+                Jws<Claims> jws = jwtService.parse(refreshToken, JwtService.TOKEN_TYPE_REFRESH);
                 jwtService.revokeRefreshToken(jws.getPayload().getId());
             } catch (Exception ignored) {
                 // Ignore expired or malformed tokens on logout
@@ -128,13 +130,13 @@ public class AuthService {
 
         Jws<Claims> jws;
         try {
-            jws = jwtService.parse(refreshToken);
+            jws = jwtService.parse(refreshToken, JwtService.TOKEN_TYPE_REFRESH);
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid or expired refresh token.");
         }
 
         String jti = jws.getPayload().getId();
-        if (!"refresh".equals(jws.getPayload().get("typ", String.class)) || !jwtService.isRefreshTokenValidAndNotRevoked(jti)) {
+        if (!jwtService.consumeRefreshToken(jti)) {
             throw new IllegalArgumentException("Revoked or invalid token type.");
         }
 
@@ -146,8 +148,6 @@ public class AuthService {
                 user.getUsername(),
                 List.of("ROLE_" + user.getRole())
         );
-
-        jwtService.revokeRefreshToken(jti);
         setRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
 
         return tokens.accessToken();
@@ -181,14 +181,13 @@ public class AuthService {
                     .set(USERS.USERNAME, baseUsername)
                     .set(USERS.EMAIL, email)
                     .setNull(USERS.PASSWORD_HASH) // STRICT ENFORCEMENT: No dummy passwords.
-                    .set(USERS.USER_TYPE, UserType.FAN.name())
+                    .set(USERS.USER_TYPE, UserType.PLAYER.name())
                     .set(USERS.CREATED_AT, LocalDateTime.now())
                     .returningResult(USERS.ID)
                     .fetchOneInto(Long.class);
 
             dsl.insertInto(USER_PROFILES)
                     .set(USER_PROFILES.USER_ID, userId)
-                    .set(USER_PROFILES.FULL_NAME, "New User")
                     .execute();
         }
 
@@ -211,6 +210,16 @@ public class AuthService {
             }
         }
         return null;
+    }
+
+    private UserType resolveInitialRole(UserType requestedRole) {
+        if (requestedRole == null) {
+            return UserType.PLAYER;
+        }
+        if (!SELF_SELECTABLE_SIGNUP_ROLES.contains(requestedRole)) {
+            throw new IllegalArgumentException("Only PLAYER or FAN can be selected during signup.");
+        }
+        return requestedRole;
     }
 
     private void setRefreshCookie(HttpServletResponse response, String token, Instant expiresAt) {

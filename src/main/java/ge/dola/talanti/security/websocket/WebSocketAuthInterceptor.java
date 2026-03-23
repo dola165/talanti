@@ -31,7 +31,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 String token = authHeader.substring(7);
                 try {
                     // Reusing your JwtService parsing logic
-                    var jws = jwtService.parse(token);
+                    var jws = jwtService.parse(token, JwtService.TOKEN_TYPE_ACCESS);
                     Long userId = Long.valueOf(jws.getPayload().getSubject());
 
                     CustomUserDetails userDetails = userDetailsService.loadUserById(userId);

@@ -417,3 +417,34 @@ ALTER TABLE matches
 
 ALTER TABLE club_opportunities
     ADD COLUMN external_link VARCHAR(500);
+
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS notifications_owner_only ON notifications;
+CREATE POLICY notifications_owner_only
+    ON notifications
+    USING (user_id = NULLIF(current_setting('talanti.current_user_id', true), '')::BIGINT);
+
+DROP POLICY IF EXISTS notifications_system_insert ON notifications;
+CREATE POLICY notifications_system_insert
+    ON notifications
+    FOR INSERT
+    WITH CHECK (true);
+
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications FORCE ROW LEVEL SECURITY;
+
+
+ALTER TABLE users
+    ALTER COLUMN user_type SET DEFAULT 'PLAYER';
+
+UPDATE user_profiles
+SET full_name = NULL
+WHERE full_name = 'New User';
+
+CREATE INDEX IF NOT EXISTS idx_clubs_location_id ON clubs(location_id);
+CREATE INDEX IF NOT EXISTS idx_tryouts_location_date ON tryouts(location_id, tryout_date);
+CREATE INDEX IF NOT EXISTS idx_matches_match_type_status_date ON matches(match_type, status, scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_matches_location_id ON matches(location_id);

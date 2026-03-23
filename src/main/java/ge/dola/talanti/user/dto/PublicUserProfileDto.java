@@ -10,11 +10,16 @@ public record PublicUserProfileDto(
         String position,
         String preferredFoot,
         String bio,
+        String availabilityStatus,
+        Integer heightCm,
+        Integer weightKg,
 
         // Stats
         int followerCount,
         int followingCount,
 
         // Context for the React UI button
-        boolean isFollowedByMe
+        boolean isFollowedByMe,
+        String avatarUrl,
+        String bannerUrl
 ) {}

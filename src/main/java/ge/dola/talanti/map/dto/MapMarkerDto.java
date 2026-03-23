@@ -2,9 +2,10 @@ package ge.dola.talanti.map.dto;
 
 public record MapMarkerDto(
         Long entityId,
-        String entityType,  // "CLUB", "TRYOUT", "MATCH_REQUEST"
+        String entityType,  // "CLUB", "TRYOUT", "MATCH"
         String title,
         String subtitle,
+        String clubName,
         Double latitude,
         Double longitude,
         Double distanceKm,
@@ -14,5 +15,8 @@ public record MapMarkerDto(
         Integer followers,
         Boolean verified,
         String date,        // For matches and tryouts
-        String fee          // e.g. "Free", "$50"
+        String fee,         // e.g. "Free", "$50"
+        String addressText,
+        String ageGroup,
+        String status
 ) {}

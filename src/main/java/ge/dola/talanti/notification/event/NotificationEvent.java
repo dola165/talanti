@@ -7,5 +7,6 @@ public record NotificationEvent(
         Long entityId,     // The ID to link to
         String title,
         String body,
-        Long sourceClubId  // Used ONLY for fan-out
+        Long sourceClubId, // Used ONLY for fan-out
+        String linkPath
 ) {}

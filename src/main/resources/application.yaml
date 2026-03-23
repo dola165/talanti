@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE}
   application:
     name: talanti
 
@@ -53,16 +53,40 @@ logging:
 
 # --- THIRD PARTY INTEGRATIONS ---
 app:
+  seed:
+    enabled: false
+  redis:
+    enabled: ${APP_REDIS_ENABLED:false}
+    cache:
+      default-ttl: PT5M
+      my-profile-ttl: PT5M
+      club-squads-ttl: PT10M
+      post-comments-ttl: PT2M
+      map-nearby-ttl: PT30S
+    rate-limit:
+      enabled: true
+      login:
+        max-requests: 10
+        window: PT5M
+      register:
+        max-requests: 5
+        window: PT15M
+      google:
+        max-requests: 10
+        window: PT10M
+      refresh:
+        max-requests: 30
+        window: PT5M
   google:
     client-id: ${GOOGLE_CLIENT_ID}
 # --- JWT CONFIGURATION ---
 jwt:
   issuer: "talanti"
   audience: "talanti-web"
-  secret: ${JWT_SECRET:TXlTdXBlclNlY3JldEtleVRoYXRJc0F0TGVhc3QzMkJ5dGVzTG9uZw==}
+  secret: ${JWT_SECRET}
   access-token-ttl: "PT15M"
   refresh-token-ttl: "P30D"
   cookie:
     refresh-name: "tl_refresh"
-    secure: false
-    same-site: "Lax"
+    secure: ${JWT_COOKIE_SECURE:true}
+    same-site: ${JWT_COOKIE_SAME_SITE:Strict}

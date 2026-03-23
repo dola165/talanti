@@ -1,10 +1,12 @@
 package ge.dola.talanti.security;
 
 import ge.dola.talanti.user.dto.CreateUserDto;
+import ge.dola.talanti.security.dto.GoogleLoginRequest;
 import ge.dola.talanti.security.dto.LoginRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,13 +34,8 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> requestBody, HttpServletResponse response) {
-        String googleToken = requestBody.get("token");
-        if (googleToken == null || googleToken.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Google token is required"));
-        }
-
-        String accessToken = authService.processGoogleLogin(googleToken, response);
+    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleLoginRequest request, HttpServletResponse response) {
+        String accessToken = authService.processGoogleLogin(request.token(), response);
         return ResponseEntity.ok(Map.of("accessToken", accessToken));
     }
 
@@ -52,9 +49,21 @@ public class AuthController {
     public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
         try {
             String accessToken = authService.processRefresh(request, response);
+            if (accessToken == null || accessToken.isBlank()) {
+                throw new IllegalArgumentException("Refresh token flow failed.");
+            }
             return ResponseEntity.ok(Map.of("accessToken", accessToken));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/csrf")
+    public ResponseEntity<?> csrf(CsrfToken csrfToken) {
+        return ResponseEntity.ok(Map.of(
+                "headerName", csrfToken.getHeaderName(),
+                "parameterName", csrfToken.getParameterName(),
+                "token", csrfToken.getToken()
+        ));
     }
 }

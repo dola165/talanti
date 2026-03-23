@@ -51,7 +51,12 @@ public class ChatRepository {
                 .fetchInto(Long.class);
     }
 
-    // You'll also want methods here later for:
-    // - getConversationHistory(Long conversationId)
-    // - getUserConversations(Long userId)
+    public boolean isConversationParticipant(Long conversationId, Long userId) {
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(CONVERSATION_PARTICIPANTS)
+                        .where(CONVERSATION_PARTICIPANTS.CONVERSATION_ID.eq(conversationId))
+                        .and(CONVERSATION_PARTICIPANTS.USER_ID.eq(userId))
+        );
+    }
 }

@@ -1,16 +1,19 @@
 package ge.dola.talanti.tryout;
 
 import ge.dola.talanti.security.CustomUserDetails;
-import ge.dola.talanti.security.util.SecurityUtils;
 import ge.dola.talanti.tryout.dto.TryoutApplicantDto;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
+@Validated
 @RequestMapping("/api/admin/tryouts")
 public class TryoutAdminController {
 
@@ -23,27 +26,21 @@ public class TryoutAdminController {
     // NEW: Fetch by specific Club ID
     @GetMapping("/clubs/{clubId}/applications")
     public ResponseEntity<List<TryoutApplicantDto>> getApplicationsByClub(
-            @PathVariable Long clubId,
+            @PathVariable @Positive Long clubId,
             @AuthenticationPrincipal CustomUserDetails user) {
         if (user == null) return ResponseEntity.status(401).build();
-        return ResponseEntity.ok(service.getApplicationsForClub(clubId, user.getId()));
+        return ResponseEntity.ok(service.getApplicationsForClub(clubId));
     }
 
     // UPGRADED: Explicitly scopes the application update to the club domain
     @PutMapping("/clubs/{clubId}/applications/{applicationId}/status")
     public ResponseEntity<?> updateStatus(
-            @PathVariable Long clubId,
-            @PathVariable Long applicationId,
-            @RequestParam String status) {
-
-        try {
-            // Passes the clubId to satisfy the @PreAuthorize proxy,
-            // the applicationId to target the row,
-            // and the adminId for the audit log.
-            service.updateApplicationStatus(clubId, applicationId, status, SecurityUtils.getCurrentUserId());
-            return ResponseEntity.ok(Map.of("message", "Status updated successfully"));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
-        }
+            @PathVariable @Positive Long clubId,
+            @PathVariable @Positive Long applicationId,
+            @RequestParam
+            @Pattern(regexp = "(?i)PENDING|SHORTLISTED|ACCEPTED|REJECTED", message = "Status must be PENDING, SHORTLISTED, ACCEPTED, or REJECTED")
+            String status) {
+        service.updateApplicationStatus(clubId, applicationId, status);
+        return ResponseEntity.ok(Map.of("message", "Status updated successfully"));
     }
 }

@@ -6,8 +6,8 @@ services:
       - '5432:5432'
     environment:
       - 'POSTGRES_DB=talanti'
-      - 'POSTGRES_PASSWORD=dola'
-      - 'POSTGRES_USER=postgres'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD?POSTGRES_PASSWORD is required}'
+      - 'POSTGRES_USER=${POSTGRES_USER?POSTGRES_USER is required}'
     volumes:
       - './postgres-data:/var/lib/postgresql/data'
 
@@ -20,8 +20,8 @@ services:
 #      - postgres
 #    environment:
 #      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/talanti
-#      - SPRING_DATASOURCE_USERNAME=postgres
-#      - SPRING_DATASOURCE_PASSWORD=dola
+#      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME?SPRING_DATASOURCE_USERNAME is required}
+#      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD?SPRING_DATASOURCE_PASSWORD is required}
 #      # If you use Spring AI, add your key here:
 #      # - SPRING_AI_OPENAI_API_KEY=your_key_here
 

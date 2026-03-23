@@ -52,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             try {
-                Jws<Claims> jws = jwtService.parse(token);
+                Jws<Claims> jws = jwtService.parse(token, JwtService.TOKEN_TYPE_ACCESS);
                 Claims payload = jws.getPayload();
 
                 Long userId = Long.valueOf(payload.getSubject());

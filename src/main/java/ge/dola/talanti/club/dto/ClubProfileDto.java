@@ -8,6 +8,7 @@ public record ClubProfileDto(
         String description,
         String type,
         boolean isOfficial,
+        String statusLabel,
 
         int followerCount,
         int memberCount,
@@ -20,6 +21,14 @@ public record ClubProfileDto(
         String addressText,
         String logoUrl,
         String bannerUrl,
+        String whatsappNumber,
+        String facebookMessengerUrl,
+        String preferredCommunicationMethod,
+        Double latitude,
+        Double longitude,
+        List<ClubTrustReferenceDto> trustedByClubs,
+
+        List<ClubHonourDto> honours,
 
         // Directly embed the opportunities so the UI renders instantly
         List<ClubOpportunityDto> opportunities

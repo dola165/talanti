@@ -3,6 +3,7 @@ package ge.dola.talanti.user.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import ge.dola.talanti.user.UserType;
 
 public record CreateUserDto(
         @NotBlank(message = "Email is required")
@@ -11,5 +12,7 @@ public record CreateUserDto(
 
         @NotBlank(message = "Password is required")
         @Size(min = 6, message = "Password must be at least 6 characters long")
-        String password
+        String password,
+
+        UserType role
 ) {}

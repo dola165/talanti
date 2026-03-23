@@ -6,5 +6,9 @@ public record ClubRosterDto(
         String position,
         Integer number,
         String status,
-        String avatar
+        String avatar,
+        Long squadId,
+        String squadName,
+        String squadCategory,
+        String squadGender
 ) {}

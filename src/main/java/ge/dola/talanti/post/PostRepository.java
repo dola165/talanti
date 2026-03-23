@@ -10,7 +10,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static ge.dola.talanti.jooq.Tables.*;
+import static ge.dola.talanti.jooq.Tables.CLUB_MEMBERSHIPS;
+import static ge.dola.talanti.jooq.Tables.COMMENTS;
+import static ge.dola.talanti.jooq.Tables.MEDIA;
+import static ge.dola.talanti.jooq.Tables.POSTS;
+import static ge.dola.talanti.jooq.Tables.POST_MEDIA;
+import static ge.dola.talanti.jooq.Tables.USERS;
+import static ge.dola.talanti.jooq.Tables.USER_PROFILES;
 import static ge.dola.talanti.jooq.tables.Likes.LIKES;
 
 @Repository
@@ -38,14 +44,14 @@ public class PostRepository {
                 .set(COMMENTS.POST_ID, postId)
                 .set(COMMENTS.USER_ID, userId)
                 .set(COMMENTS.CONTENT, content)
-                .set(COMMENTS.CREATED_AT, java.time.LocalDateTime.now())
+                .set(COMMENTS.CREATED_AT, LocalDateTime.now())
                 .returningResult(COMMENTS.ID)
                 .fetchOneInto(Long.class);
 
-        // Fetch it back immediately to return the full DTO (with the author's name) to React
         return dsl.select(
                         COMMENTS.ID,
                         DSL.coalesce(USER_PROFILES.FULL_NAME, USERS.USERNAME).as("authorName"),
+                        USER_PROFILES.PROFILE_PICTURE_URL.as("authorAvatarUrl"),
                         COMMENTS.CONTENT,
                         COMMENTS.CREATED_AT
                 )
@@ -53,12 +59,28 @@ public class PostRepository {
                 .join(USERS).on(COMMENTS.USER_ID.eq(USERS.ID))
                 .leftJoin(USER_PROFILES).on(USERS.ID.eq(USER_PROFILES.USER_ID))
                 .where(COMMENTS.ID.eq(commentId))
-                .fetchOneInto(ge.dola.talanti.feed.dto.CommentDto.class);
+                .fetchOneInto(CommentDto.class);
     }
 
-    // NEW: Batch insert the media links
+    public boolean areAllMediaOwnedByUser(Long userId, List<Long> mediaIds) {
+        if (mediaIds == null || mediaIds.isEmpty()) {
+            return true;
+        }
+
+        List<Long> uniqueMediaIds = mediaIds.stream().distinct().toList();
+        Integer ownedCount = dsl.selectCount()
+                .from(MEDIA)
+                .where(MEDIA.ID.in(uniqueMediaIds))
+                .and(MEDIA.UPLOADED_BY.eq(userId))
+                .fetchOne(0, Integer.class);
+
+        return ownedCount != null && ownedCount == uniqueMediaIds.size();
+    }
+
     public void linkMediaToPost(Long postId, List<Long> mediaIds) {
-        if (mediaIds == null || mediaIds.isEmpty()) return;
+        if (mediaIds == null || mediaIds.isEmpty()) {
+            return;
+        }
 
         var insertStep = dsl.insertInto(POST_MEDIA, POST_MEDIA.POST_ID, POST_MEDIA.MEDIA_ID, POST_MEDIA.DISPLAY_ORDER);
 
@@ -84,7 +106,7 @@ public class PostRepository {
                 .set(LIKES.POST_ID, postId)
                 .set(LIKES.USER_ID, userId)
                 .set(LIKES.CREATED_AT, LocalDateTime.now())
-                .onDuplicateKeyIgnore() // Safety net for double-clicks
+                .onDuplicateKeyIgnore()
                 .execute();
     }
 
@@ -95,7 +117,6 @@ public class PostRepository {
                 .execute();
     }
 
-    // Quick helper to check if a post actually exists before we try to like it
     public boolean postExists(Long postId) {
         return dsl.fetchExists(
                 dsl.selectOne()
@@ -104,6 +125,33 @@ public class PostRepository {
         );
     }
 
+    public boolean isPublicPost(Long postId) {
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(POSTS)
+                        .where(POSTS.ID.eq(postId))
+                        .and(POSTS.IS_PUBLIC.eq(true))
+        );
+    }
+
+    public boolean canUserAccessPost(Long postId, Long userId) {
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(POSTS)
+                        .where(POSTS.ID.eq(postId))
+                        .and(
+                                POSTS.IS_PUBLIC.eq(true)
+                                        .or(POSTS.AUTHOR_ID.eq(userId))
+                                        .or(DSL.exists(
+                                                DSL.selectOne()
+                                                        .from(CLUB_MEMBERSHIPS)
+                                                        .where(CLUB_MEMBERSHIPS.CLUB_ID.eq(POSTS.CLUB_ID))
+                                                        .and(CLUB_MEMBERSHIPS.USER_ID.eq(userId))
+                                                        .and(CLUB_MEMBERSHIPS.ROLE.in("OWNER", "CLUB_ADMIN"))
+                                        ))
+                        )
+        );
+    }
 
     public boolean isUserAdminOfClub(Long userId, Long clubId) {
         return dsl.fetchExists(
@@ -111,23 +159,16 @@ public class PostRepository {
                         .from(CLUB_MEMBERSHIPS)
                         .where(CLUB_MEMBERSHIPS.CLUB_ID.eq(clubId))
                         .and(CLUB_MEMBERSHIPS.USER_ID.eq(userId))
-                        // 🛡️ THE FIX: Allow both the Owner and the Club Admins to post
                         .and(CLUB_MEMBERSHIPS.ROLE.in("OWNER", "CLUB_ADMIN"))
         );
     }
 
-    /**
-     * Fetches a post record safely wrapped in an Optional.
-     */
     public Optional<PostsRecord> findById(Long postId) {
         return dsl.selectFrom(POSTS)
                 .where(POSTS.ID.eq(postId))
                 .fetchOptional();
     }
 
-    /**
-     * Deletes a post from the database.
-     */
     public void delete(Long postId) {
         dsl.deleteFrom(POSTS)
                 .where(POSTS.ID.eq(postId))

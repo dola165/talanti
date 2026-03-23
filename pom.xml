@@ -140,6 +140,11 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-flyway-test</artifactId>
 			<scope>test</scope>
@@ -190,6 +195,25 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>properties-maven-plugin</artifactId>
+				<version>1.2.1</version>
+				<executions>
+					<execution>
+						<phase>initialize</phase>
+						<goals>
+							<goal>read-project-properties</goal>
+						</goals>
+						<configuration>
+							<files>
+								<file>${project.basedir}/.env</file>
+							</files>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
@@ -206,6 +230,21 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<environmentVariables>
+						<SPRING_PROFILES_ACTIVE>test</SPRING_PROFILES_ACTIVE>
+						<JWT_SECRET>dGVzdF9qd3Rfc2VjcmV0X2Zvcl9wcm9kdWN0aW9uX3JlYWRpbmVzcw==</JWT_SECRET>
+						<JWT_COOKIE_SECURE>false</JWT_COOKIE_SECURE>
+						<JWT_COOKIE_SAME_SITE>Lax</JWT_COOKIE_SAME_SITE>
+						<GOOGLE_CLIENT_ID>test-client-id</GOOGLE_CLIENT_ID>
+					</environmentVariables>
+				</configuration>
+			</plugin>
+
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
@@ -239,9 +278,9 @@
 						<configuration>
 							<jdbc>
 								<driver>org.postgresql.Driver</driver>
-								<url>jdbc:postgresql://localhost:5432/talanti</url>
-								<user>postgres</user>
-								<password>dola</password>
+								<url>${JOOQ_DB_URL}</url>
+								<user>${JOOQ_DB_USER}</user>
+								<password>${JOOQ_DB_PASSWORD}</password>
 							</jdbc>
 							<generator>
 								<database>

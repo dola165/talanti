@@ -23,7 +23,9 @@ public class UserProfileRepository {
         return dsl.select(
                         USERS.ID, USERS.USERNAME, USERS.USER_TYPE,
                         USER_PROFILES.FULL_NAME, USER_PROFILES.BIO,
+                        USER_PROFILES.PROFILE_PICTURE_URL, USER_PROFILES.BANNER_URL,
                         PLAYER_DETAILS.PRIMARY_POSITION, PLAYER_DETAILS.PREFERRED_FOOT,
+                        PLAYER_DETAILS.AVAILABILITY_STATUS,
                         PLAYER_DETAILS.HEIGHT_CM, PLAYER_DETAILS.WEIGHT_KG,
                         DSL.field(DSL.selectCount().from(FOLLOWS).where(FOLLOWS.FOLLOWING_ID.eq(USERS.ID))).as("followerCount"),
                         DSL.field(DSL.selectCount().from(FOLLOWS).where(FOLLOWS.FOLLOWER_ID.eq(USERS.ID))).as("followingCount"),
@@ -47,9 +49,14 @@ public class UserProfileRepository {
                             record.get(PLAYER_DETAILS.PRIMARY_POSITION),
                             record.get(PLAYER_DETAILS.PREFERRED_FOOT),
                             record.get(USER_PROFILES.BIO),
+                            record.get(PLAYER_DETAILS.AVAILABILITY_STATUS),
+                            record.get(PLAYER_DETAILS.HEIGHT_CM),
+                            record.get(PLAYER_DETAILS.WEIGHT_KG),
                             record.get("followerCount", Integer.class),
                             record.get("followingCount", Integer.class),
-                            record.get("isFollowedByMe", Boolean.class)
+                            record.get("isFollowedByMe", Boolean.class),
+                            record.get(USER_PROFILES.PROFILE_PICTURE_URL),
+                            record.get(USER_PROFILES.BANNER_URL)
                     );
                 });
     }

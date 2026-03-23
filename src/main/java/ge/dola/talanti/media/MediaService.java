@@ -28,6 +28,8 @@ public class MediaService {
     private final StorageProvider storageProvider;
 
     private static final Set<String> ALLOWED_IMAGE_MIME_PREFIXES = Set.of("image/");
+    private static final Set<String> ALLOWED_CONTEXTS = Set.of("general", "banner", "logo", "profile");
+    private static final long MAX_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
 
     // Inside MediaService.java
 
@@ -38,6 +40,12 @@ public class MediaService {
 
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File cannot be empty");
+        }
+        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+            throw new IllegalArgumentException("File exceeds the 10MB upload limit.");
+        }
+        if (context == null || !ALLOWED_CONTEXTS.contains(context.toLowerCase())) {
+            throw new IllegalArgumentException("Unsupported upload context.");
         }
         if (!isImage(file)) {
             throw new IllegalArgumentException("Invalid file type. Only true images are allowed.");

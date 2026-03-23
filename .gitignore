@@ -5,6 +5,9 @@ target/
 !**/src/test/**/target/
 
 .env
+postgres-data/
+uploads/
+src.zip
 ### STS ###
 .apt_generated
 .classpath

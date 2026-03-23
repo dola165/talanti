@@ -8,13 +8,20 @@ import ge.dola.talanti.post.dto.CreatePostDto;
 import ge.dola.talanti.security.util.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
+@Validated
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
 public class PostController {
@@ -34,32 +41,29 @@ public class PostController {
 
     @GetMapping("/feed")
     public ResponseEntity<FeedResponseDto> getGlobalFeed(
-            @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "20") int limit) {
-        // STRICT ENFORCEMENT: Calls getFeed() with the resolved context
+            @RequestParam(required = false) @Positive Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int limit) {
         return ResponseEntity.ok(feedService.getFeed(resolveCurrentUserId(), cursor, limit));
     }
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<FeedResponseDto> getUserFeed(
-            @PathVariable Long userId,
-            @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "20") int limit) {
-        // STRICT ENFORCEMENT: Pass resolved context
+            @PathVariable @Positive Long userId,
+            @RequestParam(required = false) @Positive Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int limit) {
         return ResponseEntity.ok(feedService.getUserFeed(userId, resolveCurrentUserId(), cursor, limit));
     }
 
     @GetMapping("/club/{clubId}")
     public ResponseEntity<FeedResponseDto> getClubFeed(
-            @PathVariable Long clubId,
-            @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "20") int limit) {
-        // STRICT ENFORCEMENT: Pass resolved context
+            @PathVariable @Positive Long clubId,
+            @RequestParam(required = false) @Positive Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int limit) {
         return ResponseEntity.ok(feedService.getClubFeed(clubId, resolveCurrentUserId(), cursor, limit));
     }
 
     @GetMapping("/{postId}/comments")
-    public ResponseEntity<List<CommentDto>> getComments(@PathVariable Long postId) {
+    public ResponseEntity<List<CommentDto>> getComments(@PathVariable @Positive Long postId) {
         return ResponseEntity.ok(feedService.getComments(postId));
     }
 
@@ -68,24 +72,24 @@ public class PostController {
     @PostMapping
     public ResponseEntity<?> createPost(@Valid @RequestBody CreatePostDto dto) {
         var savedPost = postService.createPost(dto);
-        return ResponseEntity.ok(Map.of("message", "Post created", "postId", savedPost.getId()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Post created", "postId", savedPost.getId()));
     }
 
     @DeleteMapping("/{postId}")
-    public ResponseEntity<?> deletePost(@PathVariable Long postId) {
+    public ResponseEntity<?> deletePost(@PathVariable @Positive Long postId) {
         postService.deletePost(postId);
         return ResponseEntity.ok(Map.of("message", "Post deleted successfully"));
     }
 
     @PostMapping("/{postId}/like")
-    public ResponseEntity<?> toggleLike(@PathVariable Long postId) {
+    public ResponseEntity<?> toggleLike(@PathVariable @Positive Long postId) {
         boolean isNowLiked = postService.toggleLike(postId);
         return ResponseEntity.ok(Map.of("isLiked", isNowLiked));
     }
 
     @PostMapping("/{postId}/comments")
-    public ResponseEntity<CommentDto> addComment(@PathVariable Long postId, @RequestBody CommentRequest request) {
+    public ResponseEntity<CommentDto> addComment(@PathVariable @Positive Long postId, @Valid @RequestBody CommentRequest request) {
         CommentDto newComment = postService.addComment(postId, request.content());
-        return ResponseEntity.ok(newComment);
+        return ResponseEntity.status(HttpStatus.CREATED).body(newComment);
     }
 }

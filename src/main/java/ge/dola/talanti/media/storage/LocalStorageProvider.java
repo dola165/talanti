@@ -14,7 +14,7 @@ public class LocalStorageProvider implements StorageProvider {
     private final Path rootLocation;
 
     public LocalStorageProvider(@Value("${app.storage.local.dir:uploads}") String uploadDir) {
-        this.rootLocation = Paths.get(uploadDir);
+        this.rootLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
             Files.createDirectories(rootLocation);
         } catch (Exception e) {
@@ -25,6 +25,9 @@ public class LocalStorageProvider implements StorageProvider {
     @Override
     public String store(InputStream inputStream, String filename, String contentType) throws Exception {
         Path destinationFile = this.rootLocation.resolve(Paths.get(filename)).normalize().toAbsolutePath();
+        if (!destinationFile.startsWith(rootLocation)) {
+            throw new IllegalArgumentException("Invalid storage path.");
+        }
         Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
         // In a real app, this should probably return a path that a dedicated ImageController serves
         return "/uploads/" + filename;

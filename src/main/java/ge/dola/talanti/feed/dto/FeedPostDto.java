@@ -11,6 +11,7 @@ public record FeedPostDto(
         // Author details
         Long authorId,
         String authorName,
+        String authorAvatarUrl,
 
         // Club details (will be null if it's a personal post, not a club post)
         Long clubId,

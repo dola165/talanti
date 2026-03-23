@@ -5,8 +5,14 @@ spring:
       file: ./compose.yaml
 
 # --- LOCAL DEVELOPMENT OVERRIDES ---
+app:
+  seed:
+    enabled: true
+  redis:
+    enabled: true
+
 jwt:
-  secret: "TXlTdXBlclNlY3JldEtleVRoYXRJc0F0TGVhc3QzMkJ5dGVzTG9uZw==" # Hardcoded 32-byte Base64 key
+  secret: ${JWT_SECRET}
   cookie:
     secure: false    # Allow cookies over HTTP for local testing
     same-site: "Lax" # Allow React on port 5173 to talk to Spring on 8080
